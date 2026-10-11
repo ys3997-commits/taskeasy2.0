@@ -6,12 +6,15 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspaces --if-present",
+    "dev": "npm run build:shared && concurrently -n api,web -c blue,green \"npm run dev:api\" \"npm run dev:web\"",
     "dev:web": "npm run dev -w @rajshree/web",
     "dev:api": "npm run dev -w @rajshree/api",
     "build": "npm run build -w @rajshree/shared && npm run build -w @rajshree/api && npm run build -w @rajshree/web",
     "build:shared": "npm run build -w @rajshree/shared",
     "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.5"
   },
   "engines": {
     "node": ">=18"
