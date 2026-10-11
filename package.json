@@ -6,7 +6,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspaces --if-present",
+    "dev": "npm run build -w @rajshree/shared && npm run dev --workspaces --if-present",
     "dev:web": "npm run dev -w @rajshree/web",
     "dev:api": "npm run dev -w @rajshree/api",
     "build": "npm run build -w @rajshree/shared && npm run build -w @rajshree/api && npm run build -w @rajshree/web",
