@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "src/vercel.ts",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "src/vercel.ts"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/cron/generate-occurrences",
+      "schedule": "0 * * * *"
+    }
+  ]
+}
