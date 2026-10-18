@@ -8,10 +8,10 @@ function ReceivedInner() {
   const searchParams = useSearchParams();
   return (
     <TaskListPage
-      title="My Received Tasks"
+      title="Assigned Task"
       description="Tasks assigned to you."
       view="received"
-      initialStatus={searchParams.get("status") || undefined}
+      initialStatus={searchParams.get("status") || "pending"}
     />
   );
 }

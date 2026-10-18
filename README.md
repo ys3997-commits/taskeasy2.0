@@ -52,18 +52,15 @@ Copy `.env.example` to `.env` at the repo root and also into `apps/web/.env.loca
 
 1. Create a Supabase project.
 2. In the SQL Editor, run [`supabase/migrations/001_initial_schema.sql`](supabase/migrations/001_initial_schema.sql).
-3. Create the first admin Auth user in **Authentication → Users → Add user** (email + password).
-4. Insert the admin profile using [`supabase/seed_admin.sql`](supabase/seed_admin.sql) (replace UUID/email/name).
-5. Confirm the admin can log in with email (or username after profile insert).
+3. Create the first admin Auth user in **Authentication → Users → Add user**. Use the internal address `admin.user@users.rajshree.internal` and a password. People never sign in with that address.
+4. Insert the admin profile using [`supabase/seed_admin.sql`](supabase/seed_admin.sql) (replace UUID and name). The profile email must match the Auth user address.
+5. Confirm the admin can log in with username `admin.user` and that password.
 
 ## Local development
 
 ```bash
 npm install
-npm run build:shared
-npm run dev:api
-# separate terminal
-npm run dev:web
+npm run dev
 ```
 
 - Web: http://localhost:3000  
@@ -72,7 +69,7 @@ npm run dev:web
 ## Staff provisioning
 
 1. Sign in as admin.
-2. Open **Staff** → enter first name, last name, email.
+2. Open **Staff** → enter first name and last name.
 3. System generates username (`firstname.lastname`, or `firstname.lastname2` on conflict).
 4. Copy the temporary password shown once and share securely.
 5. Staff sign in and are forced to change password (`must_change_password`).

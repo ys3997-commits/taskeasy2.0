@@ -15,7 +15,24 @@ export type DisplayStatus =
 
 export type TaskType = "one_time" | "recurring_occurrence";
 
-export type Frequency = "daily" | "weekly" | "monthly" | "yearly";
+export type Frequency =
+  | "daily"
+  | "weekly"
+  | "semi_monthly"
+  | "monthly"
+  | "quarterly"
+  | "half_yearly"
+  | "yearly";
+
+export const FREQUENCY_LABELS: Record<Frequency, string> = {
+  daily: "Daily",
+  weekly: "Weekly",
+  semi_monthly: "Semi-monthly",
+  monthly: "Monthly",
+  quarterly: "Quarterly",
+  half_yearly: "Half-yearly",
+  yearly: "Yearly",
+};
 
 export type ApprovalDecision = "approved" | "rejected" | "pending";
 
@@ -26,6 +43,7 @@ export interface Profile {
   username: string;
   email: string;
   role: UserRole;
+  work_days: 6 | 7;
   is_active: boolean;
   must_change_password: boolean;
   created_at: string;
@@ -51,6 +69,14 @@ export interface Task {
   display_status?: DisplayStatus;
   delegator?: Pick<Profile, "id" | "first_name" | "last_name" | "username">;
   receiver?: Pick<Profile, "id" | "first_name" | "last_name" | "username">;
+  recurring_schedules?:
+    | { frequency: Frequency; start_date?: string }
+    | { frequency: Frequency; start_date?: string }[]
+    | null;
+  task_occurrences?:
+    | { occurrence_date: string }
+    | { occurrence_date: string }[]
+    | null;
 }
 
 export interface RecurringSchedule {
@@ -70,8 +96,20 @@ export interface RecurringSchedule {
   next_occurrence_at: string | null;
   is_active: boolean;
   is_paused: boolean;
+  /** True when the occurrence at next_occurrence_at was already finished. */
+  current_occurrence_completed?: boolean;
   created_at: string;
   updated_at: string;
+  receiver?: Pick<Profile, "id" | "first_name" | "last_name" | "username"> | null;
+  delegator?: Pick<Profile, "id" | "first_name" | "last_name" | "username"> | null;
+}
+
+export interface TaskAttachment {
+  id: string;
+  file_name: string;
+  content_type: string;
+  size_bytes: number;
+  url: string;
 }
 
 export interface TaskApproval {
@@ -95,6 +133,13 @@ export interface TaskActivityLog {
   created_at: string;
 }
 
+export interface LoginSession {
+  id: string;
+  user_id: string;
+  logged_in_at: string;
+  user?: Pick<Profile, "id" | "first_name" | "last_name" | "username"> | null;
+}
+
 export interface Notification {
   id: string;
   user_id: string;
@@ -106,11 +151,28 @@ export interface Notification {
   created_at: string;
 }
 
-export interface DashboardSummary {
+export interface TaskStatusCounts {
   pending: number;
   completed: number;
   overdue: number;
   sent_for_approval: number;
+}
+
+export interface DashboardSummary {
+  received: TaskStatusCounts;
+  delegated: TaskStatusCounts;
+}
+
+export interface MemberDetailsSummary {
+  id: string;
+  first_name: string;
+  last_name: string;
+  username: string;
+  role: UserRole;
+  is_active: boolean;
+  work_days: 6 | 7;
+  received: TaskStatusCounts;
+  delegated: TaskStatusCounts;
 }
 
 export interface PaginatedResult<T> {

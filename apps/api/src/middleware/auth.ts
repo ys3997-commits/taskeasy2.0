@@ -60,6 +60,26 @@ export function requireRole(...roles: UserRole[]) {
   };
 }
 
+/** Block app APIs until the user finishes a forced password change. */
+export function requirePasswordChanged(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction
+): void {
+  try {
+    if (req.user?.must_change_password) {
+      throw new AppError(
+        403,
+        "You must change your password before continuing",
+        "must_change_password"
+      );
+    }
+    next();
+  } catch (err) {
+    sendError(res, err);
+  }
+}
+
 export function requireCron(
   req: Request,
   res: Response,

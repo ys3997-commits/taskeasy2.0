@@ -7,6 +7,9 @@ import {
   Bell,
   CheckSquare,
   ClipboardList,
+  Clock,
+  Contact,
+  Eraser,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -19,14 +22,33 @@ import { api } from "@/lib/api";
 import { cn, fullName } from "@/lib/utils";
 import { Button } from "./ui";
 
-const nav = [
+const nav: {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  adminOnly?: boolean;
+  danger?: boolean;
+}[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/tasks/received", label: "My Received Tasks", icon: ClipboardList },
-  { href: "/tasks/delegated", label: "My Delegated Tasks", icon: CheckSquare },
-  { href: "/tasks/all", label: "All Tasks", icon: ClipboardList, adminOnly: true },
+  { href: "/tasks/received", label: "Assigned Task", icon: ClipboardList },
+  { href: "/tasks/delegated", label: "Delegated Tasks", icon: CheckSquare },
   { href: "/recurring", label: "Recurring Tasks", icon: RefreshCw },
   { href: "/approvals", label: "Approvals", icon: CheckSquare },
-  { href: "/staff", label: "Staff", icon: Users, adminOnly: true },
+  { href: "/staff", label: "Team member", icon: Users, adminOnly: true },
+  {
+    href: "/members-details",
+    label: "Members Details",
+    icon: Contact,
+    adminOnly: true,
+  },
+  { href: "/time-tracking", label: "Time Tracking", icon: Clock, adminOnly: true },
+  {
+    href: "/tasks/clear-completed",
+    label: "Clear Finished Tasks",
+    icon: Eraser,
+    adminOnly: true,
+    danger: true,
+  },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -60,11 +82,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const items = nav.filter((item) => !item.adminOnly || user.role === "admin");
+  const sideNav = pathname === "/dashboard";
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f7f8f8_0%,#eef2f0_100%)]">
       <header className="sticky top-0 z-30 border-b border-ink-200/80 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
+        <div
+          className={cn(
+            "flex items-center justify-between gap-4 px-4 py-3",
+            sideNav ? "mx-auto max-w-7xl" : "lg:px-6"
+          )}
+        >
           <div className="flex items-center gap-3">
             <button
               className="rounded-md p-2 text-ink-700 lg:hidden"
@@ -94,7 +122,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="hidden text-right sm:block">
               <p className="text-sm font-medium text-ink-900">{fullName(user)}</p>
               <p className="text-xs text-ink-500">
-                {user.username} · {user.role === "admin" ? "Admin" : "Staff"}
+                {user.role === "admin" ? "Admin" : "Team"}
               </p>
             </div>
             <Button
@@ -109,47 +137,125 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
         </div>
+        {sideNav ? null : (
+          <nav className="hidden border-t border-ink-100 lg:block">
+            <div className="flex items-center gap-1 overflow-x-auto px-4 py-2 lg:px-6">
+              <ShellNav
+                items={items}
+                pathname={pathname}
+                layout="bar"
+                onNavigate={() => setOpen(false)}
+              />
+            </div>
+          </nav>
+        )}
       </header>
 
-      <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
-        <aside
-          className={cn(
-            "fixed inset-y-0 left-0 z-40 w-64 transform border-r border-ink-200 bg-white p-4 pt-20 transition lg:static lg:z-0 lg:block lg:w-56 lg:shrink-0 lg:rounded-lg lg:border lg:p-3 lg:pt-3",
-            open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-          )}
-        >
-          <nav className="space-y-1">
-            {items.map((item) => {
-              const Icon = item.icon;
-              const active = pathname === item.href || pathname.startsWith(item.href + "/");
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  className={cn(
-                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition",
-                    active
-                      ? "bg-brand-50 font-medium text-brand-700"
-                      : "text-ink-700 hover:bg-ink-50"
-                  )}
-                >
-                  <Icon size={16} />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-        </aside>
-        {open ? (
-          <button
-            className="fixed inset-0 z-30 bg-black/20 lg:hidden"
-            onClick={() => setOpen(false)}
-            aria-label="Close menu overlay"
-          />
-        ) : null}
-        <main className="min-w-0 flex-1">{children}</main>
-      </div>
+      {sideNav ? (
+        <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
+          <aside
+            className={cn(
+              "fixed inset-y-0 left-0 z-40 w-64 border-r border-ink-200 bg-white p-4 pt-20 transition lg:static lg:z-0 lg:block lg:w-56 lg:shrink-0 lg:rounded-lg lg:border lg:p-3 lg:pt-3",
+              open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+            )}
+          >
+            <nav className="space-y-1">
+              <ShellNav
+                items={items}
+                pathname={pathname}
+                layout="drawer"
+                onNavigate={() => setOpen(false)}
+              />
+            </nav>
+          </aside>
+          {open ? (
+            <button
+              className="fixed inset-0 z-30 bg-black/20 lg:hidden"
+              onClick={() => setOpen(false)}
+              aria-label="Close menu overlay"
+            />
+          ) : null}
+          <main className="min-w-0 flex-1">{children}</main>
+        </div>
+      ) : (
+        <>
+          <aside
+            className={cn(
+              "fixed inset-y-0 left-0 z-40 w-64 border-r border-ink-200 bg-white p-4 pt-20 transition lg:hidden",
+              open ? "translate-x-0" : "-translate-x-full"
+            )}
+          >
+            <nav className="space-y-1">
+              <ShellNav
+                items={items}
+                pathname={pathname}
+                layout="drawer"
+                onNavigate={() => setOpen(false)}
+              />
+            </nav>
+          </aside>
+          {open ? (
+            <button
+              className="fixed inset-0 z-30 bg-black/20 lg:hidden"
+              onClick={() => setOpen(false)}
+              aria-label="Close menu overlay"
+            />
+          ) : null}
+          <main className="min-w-0 px-4 py-4 lg:px-6">{children}</main>
+        </>
+      )}
     </div>
+  );
+}
+
+function ShellNav({
+  items,
+  pathname,
+  layout,
+  onNavigate,
+}: {
+  items: {
+    href: string;
+    label: string;
+    icon: typeof LayoutDashboard;
+    adminOnly?: boolean;
+    danger?: boolean;
+  }[];
+  pathname: string;
+  layout: "bar" | "drawer";
+  onNavigate: () => void;
+}) {
+  return (
+    <>
+      {items.map((item) => {
+        const Icon = item.icon;
+        const active = pathname === item.href || pathname.startsWith(item.href + "/");
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onNavigate}
+            className={cn(
+              "flex items-center gap-2 text-sm transition",
+              layout === "bar"
+                ? "whitespace-nowrap rounded-md px-3 py-1.5"
+                : "rounded-md px-3 py-2",
+              item.danger && layout === "drawer" && "mt-3 border-t border-ink-100 pt-4",
+              item.danger && layout === "bar" && "ml-1 border-l border-ink-200 pl-3",
+              item.danger
+                ? active
+                  ? "bg-red-50 font-medium text-red-800"
+                  : "text-red-800 hover:bg-red-50"
+                : active
+                  ? "bg-brand-50 font-medium text-brand-700"
+                  : "text-ink-700 hover:bg-ink-50"
+            )}
+          >
+            <Icon size={16} />
+            {item.label}
+          </Link>
+        );
+      })}
+    </>
   );
 }

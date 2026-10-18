@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Notification } from "@rajshree/shared";
 import { AppShell } from "@/components/app-shell";
@@ -67,11 +66,6 @@ export default function NotificationsPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  {n.related_task_id ? (
-                    <Link href={`/tasks/${n.related_task_id}`}>
-                      <Button variant="secondary">Open task</Button>
-                    </Link>
-                  ) : null}
                   {!n.read_at ? (
                     <Button
                       variant="ghost"

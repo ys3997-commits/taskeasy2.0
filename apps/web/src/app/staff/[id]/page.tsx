@@ -42,10 +42,10 @@ export default function StaffTasksPage() {
     <AppShell>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="font-display text-3xl font-semibold text-ink-900">
-          Staff member tasks
+          Team member tasks
         </h1>
         <Button variant="secondary" onClick={() => router.push("/staff")}>
-          Back to staff
+          Back to team member
         </Button>
       </div>
       {error ? <p className="mb-3 text-sm text-red-700">{error}</p> : null}

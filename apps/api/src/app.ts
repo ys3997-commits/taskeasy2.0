@@ -9,14 +9,23 @@ import taskRoutes from "./routes/tasks";
 import recurringRoutes from "./routes/recurring";
 import cronRoutes from "./routes/cron";
 import notificationRoutes from "./routes/notifications";
+import timeTrackingRoutes from "./routes/time-tracking";
 
 export function createApp() {
   const app = express();
 
   app.use(helmet());
+  const allowedOrigins = [
+    ...new Set(
+      [...config.corsOrigin.split(","), "http://localhost:3000", "http://localhost:3001"]
+        .map((origin) => origin.trim())
+        .filter(Boolean)
+    ),
+  ];
+
   app.use(
     cors({
-      origin: config.corsOrigin.split(",").map((s) => s.trim()),
+      origin: allowedOrigins,
       credentials: true,
     })
   );
@@ -33,6 +42,7 @@ export function createApp() {
   app.use("/recurring", recurringRoutes);
   app.use("/cron", cronRoutes);
   app.use("/notifications", notificationRoutes);
+  app.use("/time-tracking", timeTrackingRoutes);
 
   app.use((_req, res) => {
     res.status(404).json({ error: "Not found", code: "not_found" });

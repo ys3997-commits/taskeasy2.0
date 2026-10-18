@@ -24,7 +24,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["var(--font-source-sans)", "Segoe UI", "sans-serif"],
-        display: ["var(--font-source-serif)", "Georgia", "serif"],
+        display: ["var(--font-display)", "Georgia", "serif"],
       },
     },
   },

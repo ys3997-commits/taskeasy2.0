@@ -21,12 +21,16 @@ export function TaskFilters({
   staffOptions,
   showSearch,
   showPeople,
+  showSort = true,
+  approvalLabel = "Sent for Approval",
 }: {
   value: TaskFiltersState;
   onChange: (next: TaskFiltersState) => void;
   staffOptions?: { id: string; label: string }[];
   showSearch?: boolean;
   showPeople?: boolean;
+  showSort?: boolean;
+  approvalLabel?: string;
 }) {
   const set = (key: keyof TaskFiltersState, v: string) =>
     onChange({ ...value, [key]: v });
@@ -38,7 +42,7 @@ export function TaskFilters({
         <option value="pending">Pending</option>
         <option value="completed">Completed</option>
         <option value="overdue">Overdue</option>
-        <option value="sent_for_approval">Sent for Approval</option>
+        <option value="sent_for_approval">{approvalLabel}</option>
         <option value="cancelled">Cancelled</option>
       </Select>
       <Select value={value.task_type} onChange={(e) => set("task_type", e.target.value)}>
@@ -50,18 +54,25 @@ export function TaskFilters({
         <option value="all">All frequencies</option>
         <option value="daily">Daily</option>
         <option value="weekly">Weekly</option>
+        <option value="semi_monthly">Semi-monthly</option>
         <option value="monthly">Monthly</option>
+        <option value="quarterly">Quarterly</option>
+        <option value="half_yearly">Half-yearly</option>
         <option value="yearly">Yearly</option>
       </Select>
-      <Select value={value.sort} onChange={(e) => set("sort", e.target.value)}>
-        <option value="deadline">Sort by deadline</option>
-        <option value="created_at">Sort by created</option>
-        <option value="status">Sort by status</option>
-      </Select>
-      <Select value={value.order} onChange={(e) => set("order", e.target.value)}>
-        <option value="asc">Ascending</option>
-        <option value="desc">Descending</option>
-      </Select>
+      {showSort ? (
+        <>
+          <Select value={value.sort} onChange={(e) => set("sort", e.target.value)}>
+            <option value="deadline">Sort by deadline</option>
+            <option value="created_at">Sort by created</option>
+            <option value="status">Sort by status</option>
+          </Select>
+          <Select value={value.order} onChange={(e) => set("order", e.target.value)}>
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+          </Select>
+        </>
+      ) : null}
       <Input
         type="date"
         value={value.from}

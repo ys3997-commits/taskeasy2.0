@@ -9,7 +9,7 @@ import { Alert, Button, Input, Label } from "@/components/ui";
 export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
-  const [identifier, setIdentifier] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,9 +17,13 @@ export default function LoginPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
+    if (username.includes("@")) {
+      setError("Sign in with your username, not an email address");
+      return;
+    }
     setLoading(true);
     try {
-      const user = await login(identifier.trim(), password);
+      const user = await login(username.trim(), password);
       router.replace(user.must_change_password ? "/change-password" : "/dashboard");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Login failed");
@@ -42,11 +46,11 @@ export default function LoginPage() {
         <form onSubmit={onSubmit} className="space-y-4">
           {error ? <Alert>{error}</Alert> : null}
           <div>
-            <Label htmlFor="identifier">Username or email</Label>
+            <Label htmlFor="username">Username</Label>
             <Input
-              id="identifier"
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               placeholder="rahul.sharma"
               autoComplete="username"
               required

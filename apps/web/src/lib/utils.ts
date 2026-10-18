@@ -1,3 +1,4 @@
+import { formatIstDate, formatIstDateTime } from "@rajshree/shared";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -6,13 +7,11 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDateTime(value: string | null | undefined): string {
-  if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  return formatIstDateTime(value);
+}
+
+export function formatDate(value: string | null | undefined): string {
+  return formatIstDate(value);
 }
 
 export function fullName(user: {

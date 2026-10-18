@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Source_Sans_3, Source_Serif_4 } from "next/font/google";
+import { Fraunces, Source_Sans_3 } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import "./globals.css";
 
@@ -8,9 +8,9 @@ const sourceSans = Source_Sans_3({
   variable: "--font-source-sans",
 });
 
-const sourceSerif = Source_Serif_4({
+const fraunces = Fraunces({
   subsets: ["latin"],
-  variable: "--font-source-serif",
+  variable: "--font-display",
 });
 
 export const metadata: Metadata = {
@@ -25,7 +25,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${sourceSans.variable} ${sourceSerif.variable} font-sans`}>
+      <body className={`${sourceSans.variable} ${fraunces.variable} font-sans`}>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

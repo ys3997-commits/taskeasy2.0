@@ -2,8 +2,8 @@
 -- (Authentication → Users → Add user).
 -- Replace the placeholders below, then execute in the SQL editor.
 --
--- Example:
---   email: admin@rajshree.energy
+-- Example Auth user (internal address only; sign-in is username + password):
+--   email: admin.user@users.rajshree.internal
 --   password: (set securely in Auth UI)
 --
 -- Then copy the user's UUID from Auth and run:
@@ -16,7 +16,7 @@ INSERT INTO public.profiles (
   'Admin',
   'User',
   'admin.user',
-  'admin@rajshree.energy',
+  'admin.user@users.rajshree.internal',
   'admin',
   TRUE,
   FALSE

@@ -5,7 +5,15 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TYPE user_role AS ENUM ('admin', 'staff');
 CREATE TYPE task_lifecycle AS ENUM ('active', 'awaiting_approval', 'completed', 'cancelled');
 CREATE TYPE task_type AS ENUM ('one_time', 'recurring_occurrence');
-CREATE TYPE recurrence_frequency AS ENUM ('daily', 'weekly', 'monthly', 'yearly');
+CREATE TYPE recurrence_frequency AS ENUM (
+  'daily',
+  'weekly',
+  'semi_monthly',
+  'monthly',
+  'quarterly',
+  'half_yearly',
+  'yearly'
+);
 CREATE TYPE approval_decision AS ENUM ('approved', 'rejected', 'pending');
 
 CREATE TABLE profiles (
@@ -15,6 +23,7 @@ CREATE TABLE profiles (
   username TEXT NOT NULL UNIQUE,
   email TEXT NOT NULL UNIQUE,
   role user_role NOT NULL DEFAULT 'staff',
+  work_days SMALLINT NOT NULL DEFAULT 7 CHECK (work_days IN (6, 7)),
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

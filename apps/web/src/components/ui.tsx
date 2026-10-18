@@ -104,7 +104,13 @@ export function Card({
   );
 }
 
-export function StatusBadge({ status }: { status: DisplayStatus }) {
+export function StatusBadge({
+  status,
+  label,
+}: {
+  status: DisplayStatus;
+  label?: string;
+}) {
   const styles: Record<DisplayStatus, string> = {
     pending: "bg-amber-50 text-amber-900 ring-amber-200",
     completed: "bg-emerald-50 text-emerald-900 ring-emerald-200",
@@ -115,11 +121,11 @@ export function StatusBadge({ status }: { status: DisplayStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
+        "inline-flex items-center whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
         styles[status]
       )}
     >
-      {DISPLAY_STATUS_LABELS[status]}
+      {label ?? DISPLAY_STATUS_LABELS[status]}
     </span>
   );
 }

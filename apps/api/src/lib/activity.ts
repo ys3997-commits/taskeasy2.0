@@ -25,11 +25,12 @@ export async function notifyUser(params: {
   relatedTaskId?: string | null;
 }): Promise<void> {
   const admin = getAdminClient();
-  await admin.from("notifications").insert({
+  const { error } = await admin.from("notifications").insert({
     user_id: params.userId,
     type: params.type,
     title: params.title,
     body: params.body,
     related_task_id: params.relatedTaskId ?? null,
   });
+  if (error) throw error;
 }

@@ -9,12 +9,20 @@ import {
   useState,
 } from "react";
 import type { Profile } from "@rajshree/shared";
-import { api, clearSession, getCachedUser, setCachedUser, setSession } from "./api";
+import {
+  ApiError,
+  api,
+  clearSession,
+  getCachedUser,
+  setCachedUser,
+  setSession,
+  setSessionInvalidatedListener,
+} from "./api";
 
 interface AuthContextValue {
   user: Profile | null;
   loading: boolean;
-  login: (identifier: string, password: string) => Promise<Profile>;
+  login: (username: string, password: string) => Promise<Profile>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -25,21 +33,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const forceLogout = useCallback(() => {
+    clearSession();
+    setUser(null);
+  }, []);
+
   const refreshUser = useCallback(async () => {
     try {
       const { user: me } = await api.me();
       setUser(me);
       setCachedUser(me);
-    } catch {
-      clearSession();
-      setUser(null);
+    } catch (err) {
+      // Keep the cached session on network blips; only clear on real auth failure.
+      const authFailed =
+        err instanceof ApiError &&
+        (err.status === 401 || err.code === "unauthorized");
+      if (authFailed) forceLogout();
     }
+  }, [forceLogout]);
+
+  useEffect(() => {
+    setSessionInvalidatedListener(() => setUser(null));
+    return () => setSessionInvalidatedListener(null);
   }, []);
 
   useEffect(() => {
     const cached = getCachedUser();
     if (cached) setUser(cached);
-    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    const token =
+      typeof window !== "undefined" ? sessionStorage.getItem("access_token") : null;
     if (!token) {
       setLoading(false);
       return;
@@ -47,8 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshUser().finally(() => setLoading(false));
   }, [refreshUser]);
 
-  const login = useCallback(async (identifier: string, password: string) => {
-    const result = await api.login(identifier, password);
+  const login = useCallback(async (username: string, password: string) => {
+    const result = await api.login(username, password);
     setSession({
       access_token: result.access_token,
       refresh_token: result.refresh_token,
@@ -59,9 +81,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
-    clearSession();
-    setUser(null);
-  }, []);
+    forceLogout();
+  }, [forceLogout]);
 
   const value = useMemo(
     () => ({ user, loading, login, logout, refreshUser }),

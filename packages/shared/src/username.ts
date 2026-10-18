@@ -1,3 +1,22 @@
+/** Special staff account that only receives system-generated schedule work — never user-assigned tasks. */
+export const SCHEDULE_TASKS_USERNAME = "schedule.tasks";
+
+export function canReceiveAssignedTasks(user: {
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+}): boolean {
+  if (user.username?.toLowerCase() === SCHEDULE_TASKS_USERNAME) return false;
+  const name = `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim().toLowerCase();
+  return name !== "schedule tasks";
+}
+
+export function capitalizeName(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
 export function normalizeNamePart(value: string): string {
   return value
     .trim()

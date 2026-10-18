@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { getAdminClient } from "../lib/supabase";
 import { sendError } from "../lib/errors";
-import { AuthedRequest, requireAuth } from "../middleware/auth";
+import { AuthedRequest, requireAuth, requirePasswordChanged } from "../middleware/auth";
 
 const router = Router();
 
-router.use(requireAuth);
+router.use(requireAuth, requirePasswordChanged);
 
 router.get("/", async (req: AuthedRequest, res) => {
   try {

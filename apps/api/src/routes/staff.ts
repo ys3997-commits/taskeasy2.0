@@ -1,18 +1,26 @@
 import { Router } from "express";
 import {
   baseUsername,
+  capitalizeName,
   createStaffSchema,
   nextUniqueUsername,
   updateStaffSchema,
 } from "@rajshree/shared";
 import { getAdminClient } from "../lib/supabase";
 import { AppError, sendError } from "../lib/errors";
-import { AuthedRequest, requireAuth, requireRole } from "../middleware/auth";
 import { generateTemporaryPassword } from "../lib/password";
+import {
+  AuthedRequest,
+  requireAuth,
+  requirePasswordChanged,
+  requireRole,
+} from "../middleware/auth";
+import { realignReceiverSchedules } from "../services/recurring";
+import { membersDetailsSummary } from "../services/tasks";
 
 const router = Router();
 
-router.use(requireAuth);
+router.use(requireAuth, requirePasswordChanged);
 
 router.get("/", requireRole("admin"), async (_req, res) => {
   try {
@@ -43,6 +51,15 @@ router.get("/active", requireAuth, async (_req: AuthedRequest, res) => {
   }
 });
 
+router.get("/details-summary", requireRole("admin"), async (_req, res) => {
+  try {
+    const data = await membersDetailsSummary();
+    res.json({ data });
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
 router.post("/", requireRole("admin"), async (req: AuthedRequest, res) => {
   try {
     const body = createStaffSchema.parse(req.body);
@@ -58,11 +75,11 @@ router.post("/", requireRole("admin"), async (req: AuthedRequest, res) => {
       base,
       (existing || []).map((r) => r.username)
     );
-    const tempPassword = generateTemporaryPassword();
+    const authEmail = `${username}@users.rajshree.internal`;
 
     const { data: authUser, error: authError } = await admin.auth.admin.createUser({
-      email: body.email.toLowerCase(),
-      password: tempPassword,
+      email: authEmail,
+      password: body.password,
       email_confirm: true,
       user_metadata: {
         first_name: body.first_name,
@@ -78,11 +95,12 @@ router.post("/", requireRole("admin"), async (req: AuthedRequest, res) => {
       .from("profiles")
       .insert({
         id: authUser.user.id,
-        first_name: body.first_name.trim(),
-        last_name: body.last_name.trim(),
+        first_name: capitalizeName(body.first_name),
+        last_name: capitalizeName(body.last_name),
         username,
-        email: body.email.toLowerCase(),
+        email: authEmail,
         role: body.role || "staff",
+        work_days: body.work_days,
         is_active: true,
         must_change_password: true,
       })
@@ -96,9 +114,8 @@ router.post("/", requireRole("admin"), async (req: AuthedRequest, res) => {
 
     res.status(201).json({
       user: profile,
-      temporary_password: tempPassword,
       login_instructions:
-        "Share the username and temporary password securely. The user must change their password on first login.",
+        "They can sign in with this username and the password you set, then must change it on first login.",
     });
   } catch (err) {
     sendError(res, err);
@@ -110,11 +127,25 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
     const body = updateStaffSchema.parse(req.body);
     const admin = getAdminClient();
     const updates: Record<string, unknown> = {};
-    if (body.first_name !== undefined) updates.first_name = body.first_name.trim();
-    if (body.last_name !== undefined) updates.last_name = body.last_name.trim();
-    if (body.email !== undefined) updates.email = body.email.toLowerCase();
+    if (body.first_name !== undefined) updates.first_name = capitalizeName(body.first_name);
+    if (body.last_name !== undefined) updates.last_name = capitalizeName(body.last_name);
     if (body.is_active !== undefined) updates.is_active = body.is_active;
     if (body.role !== undefined) updates.role = body.role;
+    if (body.work_days !== undefined) updates.work_days = body.work_days;
+
+    if (body.password) {
+      const { error: passwordError } = await admin.auth.admin.updateUserById(req.params.id, {
+        password: body.password,
+      });
+      if (passwordError) {
+        throw new AppError(400, passwordError.message, "password_update_failed");
+      }
+      updates.must_change_password = true;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      throw new AppError(400, "No changes provided", "validation_error");
+    }
 
     const { data, error } = await admin
       .from("profiles")
@@ -124,11 +155,8 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
       .maybeSingle();
     if (error) throw error;
     if (!data) throw new AppError(404, "Staff member not found", "not_found");
-
-    if (body.email) {
-      await admin.auth.admin.updateUserById(req.params.id, {
-        email: body.email.toLowerCase(),
-      });
+    if (body.work_days !== undefined) {
+      await realignReceiverSchedules(req.params.id, body.work_days);
     }
     if (body.is_active === false) {
       await admin.auth.admin.updateUserById(req.params.id, { ban_duration: "876000h" });
@@ -138,6 +166,48 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
     }
 
     res.json({ user: data });
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+router.post("/:id/reset-password", requireRole("admin"), async (req: AuthedRequest, res) => {
+  try {
+    if (req.params.id === req.user!.id) {
+      throw new AppError(
+        400,
+        "Use change password for your own account",
+        "cannot_reset_self"
+      );
+    }
+
+    const admin = getAdminClient();
+    const { data: profile, error } = await admin
+      .from("profiles")
+      .select("id, username")
+      .eq("id", req.params.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!profile) throw new AppError(404, "Team member not found", "not_found");
+
+    const temporaryPassword = generateTemporaryPassword();
+    const { error: passwordError } = await admin.auth.admin.updateUserById(profile.id, {
+      password: temporaryPassword,
+    });
+    if (passwordError) {
+      throw new AppError(400, passwordError.message, "password_update_failed");
+    }
+
+    const { error: profileError } = await admin
+      .from("profiles")
+      .update({ must_change_password: true })
+      .eq("id", profile.id);
+    if (profileError) throw profileError;
+
+    res.json({
+      username: profile.username,
+      temporary_password: temporaryPassword,
+    });
   } catch (err) {
     sendError(res, err);
   }
