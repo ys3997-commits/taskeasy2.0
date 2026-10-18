@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "build:vercel": "esbuild src/vercel.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/vercel.js --footer:js=\"module.exports = module.exports.default;\"",
+    "build:vercel": "esbuild src/vercel.ts --bundle --platform=node --target=node20 --format=cjs --outfile=server-vercel.js --footer:js=\"module.exports = module.exports.default;\"",
     "start": "node dist/server.js",
     "lint": "tsc --noEmit"
   },
