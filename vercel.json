@@ -4,9 +4,9 @@
     "api": {
       "root": "apps/api",
       "framework": "express",
-      "entrypoint": "src/vercel.ts",
+      "entrypoint": "dist/vercel.js",
       "installCommand": "cd ../.. && npm install",
-      "buildCommand": "cd ../.. && npm run build:shared && npm run build -w @rajshree/api"
+      "buildCommand": "cd ../.. && npm run build:shared && npm run build:vercel -w @rajshree/api"
     },
     "web": {
       "root": "apps/web",

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
+    "build:vercel": "esbuild src/vercel.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/vercel.js --footer:js=\"module.exports = module.exports.default;\"",
     "start": "node dist/server.js",
     "lint": "tsc --noEmit"
   },
@@ -24,6 +25,7 @@
     "@types/express": "^4.17.21",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.7.4",
+    "esbuild": "^0.28.2",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3"
   }
