@@ -113,7 +113,7 @@ One Vercel project deploys both apps via root [`vercel.json`](vercel.json):
    - `APP_TIMEZONE` → `Asia/Kolkata` (optional; API defaults apply)
    - Do **not** set `API_URL` (injected by the `web` → `api` service binding)
    - Do **not** set `NEXT_PUBLIC_API_URL` in production (browser calls same-origin `/api`)
-3. Deploy. Cron hits `/api/cron/generate-occurrences` hourly.
+3. Deploy. Cron hits `/api/cron/generate-occurrences` once daily at 00:00 UTC (Hobby plan limit; Pro allows hourly).
 
 Local production-like check: `vercel dev` (runs both services and injects bindings). For day-to-day coding, `npm run dev` still works with `NEXT_PUBLIC_API_URL=http://localhost:4000`.
 
