@@ -9,7 +9,26 @@ import type {
   TaskAttachment,
 } from "@rajshree/shared";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+/**
+ * Resolve the Express API base URL.
+ * - Browser on Vercel: same-origin public rewrite at `/api`
+ * - Next.js server (RSC/route handlers): prefer the injected service binding `API_URL`
+ * - Local `npm run dev`: `NEXT_PUBLIC_API_URL=http://localhost:4000` (root paths)
+ */
+function resolveApiBaseUrl(): string {
+  if (typeof window === "undefined") {
+    const bound = process.env.API_URL?.replace(/\/$/, "");
+    if (bound) return bound;
+  }
+
+  const configured = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  if (configured) return configured;
+
+  if (typeof window !== "undefined") return "/api";
+  return "http://localhost:4000";
+}
+
+const API_URL = resolveApiBaseUrl();
 
 const SESSION_KEYS = ["access_token", "refresh_token", "user"] as const;
 

@@ -87,7 +87,7 @@ Uniqueness on `(recurring_schedule_id, occurrence_date)` prevents duplicates if 
 
 ### Vercel Cron
 
-`apps/api/vercel.json` schedules the job hourly. Configure `CRON_SECRET` in the API project env. For Vercel Cron auth, also send the secret as `Authorization: Bearer …` (configure via a secure wrapper or use the same header in a scheduled external ping).
+Root `vercel.json` schedules the job hourly at `/api/cron/generate-occurrences`. Set `CRON_SECRET` in the project env; Vercel sends `Authorization: Bearer <CRON_SECRET>` on cron invocations.
 
 ### Manual / local
 
@@ -96,21 +96,26 @@ curl -X POST http://localhost:4000/cron/generate-occurrences \
   -H "Authorization: Bearer $CRON_SECRET"
 ```
 
-## Deployment
+## Deployment (Vercel Services)
 
-### Frontend (Vercel)
+One Vercel project deploys both apps via root [`vercel.json`](vercel.json):
 
-1. Import the repo; set root to `apps/web` (or use a monorepo config).
-2. Set `NEXT_PUBLIC_API_URL` to the deployed API URL.
-3. Build command: from repo root `npm install && npm run build:shared && npm run build -w @rajshree/web` (adjust for your Vercel project settings).
+| Service | Root | Public path |
+|---------|------|-------------|
+| `web` | `apps/web` | `/` (catch-all) |
+| `api` | `apps/api` | `/api/*` |
 
-### API (Vercel serverless)
+1. Import the GitHub repo into **one** Vercel project (do not set a subdirectory root — use the repo root so `vercel.json` is read).
+2. Set project env vars (shared across services):
+   - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+   - `CRON_SECRET`
+   - `CORS_ORIGIN` → your production URL (e.g. `https://your-app.vercel.app`)
+   - `APP_TIMEZONE` → `Asia/Kolkata` (optional; API defaults apply)
+   - Do **not** set `API_URL` (injected by the `web` → `api` service binding)
+   - Do **not** set `NEXT_PUBLIC_API_URL` in production (browser calls same-origin `/api`)
+3. Deploy. Cron hits `/api/cron/generate-occurrences` hourly.
 
-1. Deploy `apps/api` as a separate Vercel project (entrypoint `src/vercel.ts`).
-2. Set all API env vars including `SUPABASE_SERVICE_ROLE_KEY` and `CRON_SECRET`.
-3. Set `CORS_ORIGIN` to the frontend URL.
-
-Alternatively host the Express API on Railway/Render/Fly for a long-lived Node process; cron can still call the same HTTP endpoint.
+Local production-like check: `vercel dev` (runs both services and injects bindings). For day-to-day coding, `npm run dev` still works with `NEXT_PUBLIC_API_URL=http://localhost:4000`.
 
 ## Approval behaviour
 

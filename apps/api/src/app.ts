@@ -11,6 +11,24 @@ import cronRoutes from "./routes/cron";
 import notificationRoutes from "./routes/notifications";
 import timeTrackingRoutes from "./routes/time-tracking";
 
+function createApiRouter() {
+  const router = express.Router();
+
+  router.get("/health", (_req, res) => {
+    res.json({ ok: true, service: "rajshree-api" });
+  });
+
+  router.use("/auth", authRoutes);
+  router.use("/staff", staffRoutes);
+  router.use("/tasks", taskRoutes);
+  router.use("/recurring", recurringRoutes);
+  router.use("/cron", cronRoutes);
+  router.use("/notifications", notificationRoutes);
+  router.use("/time-tracking", timeTrackingRoutes);
+
+  return router;
+}
+
 export function createApp() {
   const app = express();
 
@@ -32,17 +50,10 @@ export function createApp() {
   app.use(express.json({ limit: "1mb" }));
   app.use(morgan("dev"));
 
-  app.get("/health", (_req, res) => {
-    res.json({ ok: true, service: "rajshree-api" });
-  });
-
-  app.use("/auth", authRoutes);
-  app.use("/staff", staffRoutes);
-  app.use("/tasks", taskRoutes);
-  app.use("/recurring", recurringRoutes);
-  app.use("/cron", cronRoutes);
-  app.use("/notifications", notificationRoutes);
-  app.use("/time-tracking", timeTrackingRoutes);
+  // Local `npm run dev` + internal service bindings use root paths (/auth, /tasks, …).
+  app.use(createApiRouter());
+  // Public Vercel rewrite keeps the /api prefix, so also mount under /api.
+  app.use("/api", createApiRouter());
 
   app.use((_req, res) => {
     res.status(404).json({ error: "Not found", code: "not_found" });
