@@ -375,6 +375,11 @@ export const api = {
       method: "POST",
     });
   },
+  clearCancelledRecurring() {
+    return request<{ deleted: number }>("/recurring/cancelled/clear", {
+      method: "POST",
+    });
+  },
   completeRecurring(id: string) {
     return request<{ schedule: RecurringSchedule }>(`/recurring/${id}/complete`, {
       method: "POST",

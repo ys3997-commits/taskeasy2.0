@@ -4,7 +4,6 @@ import { Input, Select } from "./ui";
 
 export interface TaskFiltersState {
   status: string;
-  task_type: string;
   frequency: string;
   q: string;
   sort: string;
@@ -44,11 +43,6 @@ export function TaskFilters({
         <option value="overdue">Overdue</option>
         <option value="sent_for_approval">{approvalLabel}</option>
         <option value="cancelled">Cancelled</option>
-      </Select>
-      <Select value={value.task_type} onChange={(e) => set("task_type", e.target.value)}>
-        <option value="all">All types</option>
-        <option value="one_time">One-time</option>
-        <option value="recurring_occurrence">Recurring occurrence</option>
       </Select>
       <Select value={value.frequency} onChange={(e) => set("frequency", e.target.value)}>
         <option value="all">All frequencies</option>
@@ -124,7 +118,6 @@ export function TaskFilters({
 
 export const defaultFilters: TaskFiltersState = {
   status: "all",
-  task_type: "all",
   frequency: "all",
   q: "",
   sort: "deadline",

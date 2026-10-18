@@ -4,7 +4,6 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TYPE user_role AS ENUM ('admin', 'staff');
 CREATE TYPE task_lifecycle AS ENUM ('active', 'awaiting_approval', 'completed', 'cancelled');
-CREATE TYPE task_type AS ENUM ('one_time', 'recurring_occurrence');
 CREATE TYPE recurrence_frequency AS ENUM (
   'daily',
   'weekly',
@@ -56,7 +55,6 @@ CREATE TABLE tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   description TEXT NOT NULL,
-  task_type task_type NOT NULL DEFAULT 'one_time',
   delegator_id UUID NOT NULL REFERENCES profiles (id),
   receiver_id UUID NOT NULL REFERENCES profiles (id),
   deadline TIMESTAMPTZ NOT NULL,

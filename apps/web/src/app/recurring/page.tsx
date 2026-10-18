@@ -68,8 +68,14 @@ export default function RecurringListPage() {
   const isAdmin = user?.role === "admin";
   const [schedules, setSchedules] = useState<RecurringSchedule[]>([]);
   const [error, setError] = useState("");
+  const [clearingCancelled, setClearingCancelled] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("title");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const cancelledCount = useMemo(
+    () => schedules.filter((s) => !s.is_active && s.is_paused).length,
+    [schedules]
+  );
 
   const sortedSchedules = useMemo(() => {
     return [...schedules].sort((a, b) => {
@@ -110,10 +116,41 @@ export default function RecurringListPage() {
         <h1 className="font-display text-3xl font-semibold text-ink-900">
           Recurring Tasks
         </h1>
-        {user?.role === "admin" ? (
-          <Link href="/recurring/new">
-            <Button>Create Recurring Task</Button>
-          </Link>
+        {isAdmin ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href="/recurring/new">
+              <Button>Create Recurring Task</Button>
+            </Link>
+            <Button
+              variant="danger"
+              disabled={!cancelledCount || clearingCancelled}
+              onClick={async () => {
+                if (
+                  !confirm(
+                    `Clear ${cancelledCount} cancelled recurring ${
+                      cancelledCount === 1 ? "task" : "tasks"
+                    } from the list?`
+                  )
+                ) {
+                  return;
+                }
+                setError("");
+                setClearingCancelled(true);
+                try {
+                  await api.clearCancelledRecurring();
+                  await load();
+                } catch (err) {
+                  setError(
+                    err instanceof Error ? err.message : "Failed to clear cancelled tasks"
+                  );
+                } finally {
+                  setClearingCancelled(false);
+                }
+              }}
+            >
+              {clearingCancelled ? "Clearing…" : "Clear Cancelled Tasks"}
+            </Button>
+          </div>
         ) : null}
       </div>
 

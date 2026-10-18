@@ -93,7 +93,6 @@ export function TaskListPage({
     () => ({
       view,
       status: filters.status,
-      task_type: filters.task_type,
       frequency: filters.frequency,
       q: filters.q,
       sort: filters.sort,
@@ -116,7 +115,6 @@ export function TaskListPage({
     return schedules.filter((schedule) => {
       if (view === "received" && schedule.receiver_id !== user.id) return false;
       if (view === "delegated" && schedule.delegator_id !== user.id) return false;
-      if (filters.task_type === "one_time") return false;
       if (filters.frequency !== "all" && schedule.frequency !== filters.frequency) {
         return false;
       }

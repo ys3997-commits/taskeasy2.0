@@ -48,7 +48,6 @@ export function TaskTable({
   const approvals = variant === "approvals";
   const showReceiver = !assigned;
   const showDelegator = !delegated;
-  const showFrequency = assigned || delegated || approvals;
   const showRange = assigned || delegated;
   const dateOnly = assigned || delegated;
   const sortable = assigned || delegated || approvals;
@@ -87,7 +86,6 @@ export function TaskTable({
       delegated,
       showReceiver,
       showDelegator,
-      showFrequency,
       showRange,
       dateOnly,
       onComplete,
@@ -167,7 +165,7 @@ export function TaskTable({
               onSort={toggleSort}
             />
             <SortHeader
-              label={showFrequency ? "Frequency" : "Type"}
+              label="Frequency"
               column="frequency"
               sortable={sortable}
               sort={sort}
@@ -293,7 +291,6 @@ function buildRows({
   delegated,
   showReceiver,
   showDelegator,
-  showFrequency,
   showRange,
   dateOnly,
   onComplete,
@@ -311,7 +308,6 @@ function buildRows({
   delegated: boolean;
   showReceiver: boolean;
   showDelegator: boolean;
-  showFrequency: boolean;
   showRange: boolean;
   dateOnly: boolean;
   onComplete?: (task: Task) => void;
@@ -339,7 +335,7 @@ function buildRows({
         startRaw: taskStartRaw(task),
         deadline: dateOnly ? formatDate(task.deadline) : formatDateTime(task.deadline),
         deadlineRaw: task.deadline,
-        type: showFrequency ? taskFrequencyLabel(task) : taskTypeLabel(task),
+        type: taskFrequencyLabel(task),
         status,
         statusLabel: delegated && status === "sent_for_approval" ? "Approval" : undefined,
         complete: assigned
@@ -361,7 +357,7 @@ function buildRows({
                 onApprove: () => onApprove?.(task),
                 onRetask: () => onRetask?.(task),
               },
-              task.task_type === "one_time"
+              !task.recurring_schedule_id
             )
           : undefined,
       };
@@ -386,7 +382,7 @@ function buildRows({
           ? formatDate(schedule.end_date || schedule.next_occurrence_at)
           : formatDateTime(schedule.next_occurrence_at || schedule.end_date),
         deadlineRaw: schedule.next_occurrence_at || schedule.end_date,
-        type: showFrequency ? FREQUENCY_LABELS[schedule.frequency] : "Recurring",
+        type: FREQUENCY_LABELS[schedule.frequency],
         status,
         statusLabel: undefined,
         complete: assigned
@@ -463,12 +459,8 @@ function taskStartRaw(task: Task) {
   return firstNested(task.task_occurrences)?.occurrence_date || task.created_at;
 }
 
-function taskTypeLabel(task: Task) {
-  return task.task_type === "one_time" ? "One-time" : "Recurring";
-}
-
 function taskFrequencyLabel(task: Task) {
-  if (task.task_type === "one_time") return "One-time";
+  if (!task.recurring_schedule_id) return "—";
   const nested = task.recurring_schedules;
   const frequency: Frequency | undefined = Array.isArray(nested)
     ? nested[0]?.frequency

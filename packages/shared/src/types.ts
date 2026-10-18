@@ -13,8 +13,6 @@ export type DisplayStatus =
   | "sent_for_approval"
   | "cancelled";
 
-export type TaskType = "one_time" | "recurring_occurrence";
-
 export type Frequency =
   | "daily"
   | "weekly"
@@ -54,7 +52,6 @@ export interface Task {
   id: string;
   title: string;
   description: string;
-  task_type: TaskType;
   delegator_id: string;
   receiver_id: string;
   deadline: string;

@@ -134,7 +134,6 @@ export const taskListQuerySchema = z.object({
   status: z
     .enum(["pending", "completed", "overdue", "sent_for_approval", "cancelled", "all"])
     .optional(),
-  task_type: z.enum(["one_time", "recurring_occurrence", "all"]).optional(),
   frequency: z
     .enum([
       "daily",

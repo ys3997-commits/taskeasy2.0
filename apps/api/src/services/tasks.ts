@@ -46,7 +46,6 @@ export function canViewTask(
 export interface ListTasksParams {
   view?: "received" | "delegated" | "all" | "approvals";
   status?: DisplayStatus | "all";
-  task_type?: "one_time" | "recurring_occurrence" | "all";
   frequency?: string;
   delegator_id?: string;
   receiver_id?: string;
@@ -94,9 +93,6 @@ export async function listTasks(params: ListTasksParams) {
     }
   }
 
-  if (params.task_type && params.task_type !== "all") {
-    query = query.eq("task_type", params.task_type);
-  }
   if (params.delegator_id) query = query.eq("delegator_id", params.delegator_id);
   if (params.receiver_id) query = query.eq("receiver_id", params.receiver_id);
   if (params.from) query = query.gte("deadline", params.from);
@@ -109,7 +105,7 @@ export async function listTasks(params: ListTasksParams) {
 
   if (frequencyFilter) {
     query = query
-      .eq("task_type", "recurring_occurrence")
+      .not("recurring_schedule_id", "is", null)
       .eq("recurring_schedules.frequency", frequencyFilter);
   }
 

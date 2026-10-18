@@ -75,7 +75,6 @@ export async function generateDueOccurrences(limit = 200): Promise<{
         .insert({
           title: schedule.title,
           description: schedule.description,
-          task_type: "recurring_occurrence",
           delegator_id: schedule.delegator_id,
           receiver_id: schedule.receiver_id,
           deadline,
@@ -241,7 +240,6 @@ export async function completeCurrentOccurrence(scheduleId: string, actorId: str
       .insert({
         title: schedule.title,
         description: schedule.description,
-        task_type: "recurring_occurrence",
         delegator_id: schedule.delegator_id,
         receiver_id: schedule.receiver_id,
         deadline,

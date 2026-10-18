@@ -63,6 +63,30 @@ router.get("/", async (req: AuthedRequest, res) => {
   }
 });
 
+router.post("/cancelled/clear", requireRole("admin"), async (_req, res) => {
+  try {
+    const admin = getAdminClient();
+    let deleted = 0;
+
+    for (let batch = 0; batch < 50; batch += 1) {
+      const { data, error } = await admin
+        .from("recurring_schedules")
+        .delete()
+        .eq("is_active", false)
+        .eq("is_paused", true)
+        .select("id");
+      if (error) throw error;
+      const rows = data || [];
+      if (rows.length === 0) break;
+      deleted += rows.length;
+    }
+
+    res.json({ deleted });
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
 router.get("/:id", async (req: AuthedRequest, res) => {
   try {
     const admin = getAdminClient();

@@ -104,7 +104,6 @@ router.post("/", async (req: AuthedRequest, res) => {
     const rows = body.receiver_ids.map((receiverId) => ({
       title: body.title.trim(),
       description: body.description.trim(),
-      task_type: "one_time" as const,
       delegator_id: req.user!.id,
       receiver_id: receiverId,
       deadline: deadline.toISOString(),

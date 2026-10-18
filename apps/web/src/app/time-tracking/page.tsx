@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   IST_TIME_ZONE,
   istDateString,
-  todayIst,
   type LoginSession,
   type Profile,
 } from "@rajshree/shared";
@@ -126,14 +125,13 @@ export default function TimeTrackingPage() {
   }, [sessions]);
 
   const allRows = useMemo(() => {
-    const today = todayIst();
+    // Most recent first-login-of-day per member (kept even if they never signed in again).
     const loginByUser = new Map<string, string>();
     for (const session of firstLogins) {
-      if (istDateString(new Date(session.logged_in_at)) !== today) continue;
       const existing = loginByUser.get(session.user_id);
       if (
         !existing ||
-        new Date(session.logged_in_at).getTime() < new Date(existing).getTime()
+        new Date(session.logged_in_at).getTime() > new Date(existing).getTime()
       ) {
         loginByUser.set(session.user_id, session.logged_in_at);
       }
@@ -179,8 +177,8 @@ export default function TimeTrackingPage() {
     <AppShell>
       <h1 className="font-display text-3xl font-semibold text-ink-900">Time Tracking</h1>
       <p className="mt-1 text-sm text-ink-500">
-        All members lists everyone A–Z for today. One member shows every date. Times are shown in
-        IST.
+        All members lists everyone A–Z with their latest first sign-in of the day. One member shows
+        every date. Times are shown in IST.
       </p>
 
       <div className="mt-6 inline-flex rounded-md border border-ink-200 bg-white p-1">
@@ -241,7 +239,7 @@ export default function TimeTrackingPage() {
           allRows.length === 0 ? (
             <EmptyState
               title="No team members yet"
-              description="Add staff to see today’s sign-in times here."
+              description="Add staff to see first sign-in times here."
             />
           ) : (
             <div className="overflow-x-auto rounded-lg border border-ink-200 bg-white">
