@@ -3,9 +3,11 @@ import { changePasswordSchema, loginSchema } from "@rajshree/shared";
 import { getAdminClient } from "../lib/supabase";
 import { AppError, sendError } from "../lib/errors";
 import { AuthedRequest, requireAuth } from "../middleware/auth";
+import { clearCachedAuthProfile, setCachedAuthProfile } from "../lib/auth-cache";
 import { config } from "../config";
 import { recordLogin } from "../lib/sessions";
 import { createClient } from "@supabase/supabase-js";
+import type { Profile } from "@rajshree/shared";
 
 const router = Router();
 
@@ -47,6 +49,7 @@ router.post("/login", async (req, res) => {
     }
 
     await recordLogin(profile.id);
+    setCachedAuthProfile(data.session.access_token, profile as Profile);
 
     res.json({
       access_token: data.session.access_token,
@@ -86,6 +89,8 @@ router.post("/refresh", async (req, res) => {
     if (!profile || !profile.is_active) {
       throw new AppError(403, "Account is deactivated", "account_inactive");
     }
+
+    setCachedAuthProfile(data.session.access_token, profile as Profile);
 
     res.json({
       access_token: data.session.access_token,
@@ -132,6 +137,15 @@ router.post("/change-password", requireAuth, async (req: AuthedRequest, res) => 
       .from("profiles")
       .update({ must_change_password: false })
       .eq("id", userId);
+
+    if (req.accessToken && req.user) {
+      setCachedAuthProfile(req.accessToken, {
+        ...req.user,
+        must_change_password: false,
+      });
+    } else {
+      clearCachedAuthProfile(req.accessToken);
+    }
 
     res.json({ ok: true });
   } catch (err) {

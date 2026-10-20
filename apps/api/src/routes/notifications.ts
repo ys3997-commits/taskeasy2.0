@@ -7,12 +7,27 @@ const router = Router();
 
 router.use(requireAuth, requirePasswordChanged);
 
+router.get("/unread-count", async (req: AuthedRequest, res) => {
+  try {
+    const admin = getAdminClient();
+    const { count, error } = await admin
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", req.user!.id)
+      .is("read_at", null);
+    if (error) throw error;
+    res.json({ count: count ?? 0 });
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
 router.get("/", async (req: AuthedRequest, res) => {
   try {
     const admin = getAdminClient();
     const { data, error } = await admin
       .from("notifications")
-      .select("*")
+      .select("id, user_id, title, body, type, task_id, read_at, created_at")
       .eq("user_id", req.user!.id)
       .order("created_at", { ascending: false })
       .limit(50);

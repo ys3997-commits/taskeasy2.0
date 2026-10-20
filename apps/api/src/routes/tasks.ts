@@ -30,7 +30,8 @@ import {
   requireRole,
 } from "../middleware/auth";
 import { logActivity, notifyUser } from "../lib/activity";
-import { generateDueOccurrences, scheduleNextAfterCompletion } from "../services/recurring";
+import { scheduleNextAfterCompletion } from "../services/recurring";
+import { scheduleDueOccurrences } from "../lib/occurrence-runner";
 import {
   canViewTask,
   dashboardSummary,
@@ -44,6 +45,7 @@ router.use(requireAuth, requirePasswordChanged);
 
 router.get("/dashboard/summary", async (req: AuthedRequest, res) => {
   try {
+    scheduleDueOccurrences(50);
     const summary = await dashboardSummary(req.user!.id, req.user!.role);
     res.json(summary);
   } catch (err) {
@@ -53,7 +55,7 @@ router.get("/dashboard/summary", async (req: AuthedRequest, res) => {
 
 router.get("/", async (req: AuthedRequest, res) => {
   try {
-    await generateDueOccurrences(50);
+    scheduleDueOccurrences(50);
     const query = taskListQuerySchema.parse(req.query);
     if (query.view === "all" && req.user!.role !== "admin") {
       // staff may still use all as union of received+delegated — listTasks handles it

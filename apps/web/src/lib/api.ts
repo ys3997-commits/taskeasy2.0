@@ -388,6 +388,9 @@ export const api = {
   notifications() {
     return request<{ data: Notification[] }>("/notifications");
   },
+  unreadNotificationCount() {
+    return request<{ count: number }>("/notifications/unread-count");
+  },
   markNotificationRead(id: string) {
     return request<{ notification: Notification }>(`/notifications/${id}/read`, {
       method: "POST",

@@ -100,20 +100,60 @@ function pad2(value: number): string {
   return String(value).padStart(2, "0");
 }
 
-/** Anchor day for thrice-monthly (A, A+10, A+20). Stored on the schedule as bymonthday. */
-function thriceAnchor(date: string, bymonthday?: number | null): number {
+/**
+ * Anchor day for step-within-month frequencies.
+ * Semi-monthly: A, A+15. Thrice monthly: A, A+10, A+20.
+ * Stored on the schedule as bymonthday.
+ */
+function periodAnchor(
+  date: string,
+  stepDays: 10 | 15,
+  bymonthday?: number | null
+): number {
   if (typeof bymonthday === "number" && bymonthday >= 1 && bymonthday <= 31) {
     return bymonthday;
   }
   const day = Number(date.slice(8, 10));
   if (day === 1) return 1;
-  if (day > 20) return day - 20;
-  if (day > 10) return day - 10;
+  if (stepDays === 10) {
+    if (day > 20) return day - 20;
+    if (day > 10) return day - 10;
+    return day;
+  }
+  if (day > 15) return day - 15;
   return day;
 }
 
 /**
- * Thrice monthly: due on A, A+10, A+20 each month.
+ * Semi-monthly: due on A and A+15 each month (~15 days apart).
+ * If A+15 does not exist, that slot is the 1st of the next month, then A again.
+ * Example start 10: 10 → 25 → 10 → 25 → …
+ * Example start 20 in a 30-day month: 20 → 1 next → 20 → 1 → …
+ */
+function shiftSemiMonthly(date: string, bymonthday?: number | null): string {
+  const year = Number(date.slice(0, 4));
+  const month = Number(date.slice(5, 7));
+  const day = Number(date.slice(8, 10));
+  const anchor = periodAnchor(date, 15, bymonthday);
+  const last = daysInMonth(year, month);
+  const second = anchor + 15;
+  const ym = `${year}-${pad2(month)}`;
+
+  // 1st stands in for a missing A+15 from the previous month — next is A this month.
+  if (day === 1 && anchor !== 1) {
+    return `${ym}-${pad2(Math.min(anchor, last))}`;
+  }
+
+  if (day < second) {
+    if (second <= last) return `${ym}-${pad2(second)}`;
+    return addCalendarMonths(`${ym}-01`, 1, 1);
+  }
+
+  return addCalendarMonths(`${ym}-01`, 1, anchor);
+}
+
+/**
+ * Thrice monthly: due on A, A+10, A+20 each month (~10 days apart).
  * If A+20 does not exist (e.g. 29 in a 28-day month), that slot is the 1st of the next month,
  * then the cycle continues with A in that month.
  * Example start 9 Feb (28 days): 9 → 19 → 1 Mar → 9 Mar → 19 Mar → 29 Mar → …
@@ -122,7 +162,7 @@ function shiftThriceMonthly(date: string, bymonthday?: number | null): string {
   const year = Number(date.slice(0, 4));
   const month = Number(date.slice(5, 7));
   const day = Number(date.slice(8, 10));
-  const anchor = thriceAnchor(date, bymonthday);
+  const anchor = periodAnchor(date, 10, bymonthday);
   const last = daysInMonth(year, month);
   const second = anchor + 10;
   const third = anchor + 20;
@@ -159,13 +199,7 @@ function shiftByPeriod(
   if (frequency === "semi_monthly") {
     let cursor = date.slice(0, 10);
     for (let count = 0; count < step; count += 1) {
-      const year = Number(cursor.slice(0, 4));
-      const month = Number(cursor.slice(5, 7));
-      const day = Number(cursor.slice(8, 10));
-      cursor =
-        day < 15
-          ? `${year}-${String(month).padStart(2, "0")}-15`
-          : addCalendarMonths(`${year}-${String(month).padStart(2, "0")}-01`, 1, 1);
+      cursor = shiftSemiMonthly(cursor, bymonthday);
     }
     return cursor;
   }

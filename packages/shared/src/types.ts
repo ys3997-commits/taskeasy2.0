@@ -16,18 +16,35 @@ export type DisplayStatus =
 export type Frequency =
   | "daily"
   | "weekly"
-  | "semi_monthly"
   | "thrice_monthly"
+  | "semi_monthly"
   | "monthly"
   | "quarterly"
   | "half_yearly"
   | "yearly";
 
+/** Approximate period length used for “small → big” frequency ordering. */
+export const FREQUENCY_PERIOD_DAYS: Record<Frequency, number> = {
+  daily: 1,
+  weekly: 7,
+  thrice_monthly: 10,
+  semi_monthly: 15,
+  monthly: 30,
+  quarterly: 90,
+  half_yearly: 182,
+  yearly: 365,
+};
+
+/** Frequencies ordered from shortest period to longest. */
+export const FREQUENCY_ORDER = (
+  Object.keys(FREQUENCY_PERIOD_DAYS) as Frequency[]
+).sort((a, b) => FREQUENCY_PERIOD_DAYS[a] - FREQUENCY_PERIOD_DAYS[b]);
+
 export const FREQUENCY_LABELS: Record<Frequency, string> = {
   daily: "Daily",
   weekly: "Weekly",
-  semi_monthly: "Semi-monthly",
   thrice_monthly: "Thrice Monthly",
+  semi_monthly: "Semi-monthly",
   monthly: "Monthly",
   quarterly: "Quarterly",
   half_yearly: "Half-yearly",

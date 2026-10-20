@@ -67,9 +67,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
+
+    function loadUnread() {
+      api
+        .unreadNotificationCount()
+        .then((res) => {
+          if (!cancelled) setUnread(res.count);
+        })
+        .catch(() => undefined);
+    }
+
+    loadUnread();
+    const onFocus = () => loadUnread();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || pathname !== "/notifications") return;
     api
-      .notifications()
-      .then((res) => setUnread(res.data.filter((n) => !n.read_at).length))
+      .unreadNotificationCount()
+      .then((res) => setUnread(res.count))
       .catch(() => undefined);
   }, [user, pathname]);
 

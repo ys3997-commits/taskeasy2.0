@@ -1,5 +1,10 @@
 import { NextFunction, Request, Response } from "express";
 import type { Profile, UserRole } from "@rajshree/shared";
+import {
+  coalesceAuthLookup,
+  getCachedAuthProfile,
+  setCachedAuthProfile,
+} from "../lib/auth-cache";
 import { getAdminClient } from "../lib/supabase";
 import { AppError, sendError } from "../lib/errors";
 
@@ -8,17 +13,24 @@ export interface AuthedRequest extends Request {
   accessToken?: string;
 }
 
-export async function requireAuth(
-  req: AuthedRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
-    const header = req.headers.authorization;
-    if (!header?.startsWith("Bearer ")) {
-      throw new AppError(401, "Missing authorization token", "unauthorized");
+async function resolveAuthProfile(token: string): Promise<Profile> {
+  const cached = getCachedAuthProfile(token);
+  if (cached) {
+    if (!cached.is_active) {
+      throw new AppError(403, "Account is deactivated", "account_inactive");
     }
-    const token = header.slice(7);
+    return cached;
+  }
+
+  return coalesceAuthLookup(token, async () => {
+    const stillCached = getCachedAuthProfile(token);
+    if (stillCached) {
+      if (!stillCached.is_active) {
+        throw new AppError(403, "Account is deactivated", "account_inactive");
+      }
+      return stillCached;
+    }
+
     const admin = getAdminClient();
     const { data, error } = await admin.auth.getUser(token);
     if (error || !data.user) {
@@ -38,7 +50,25 @@ export async function requireAuth(
       throw new AppError(403, "Account is deactivated", "account_inactive");
     }
 
-    req.user = profile as Profile;
+    const resolved = profile as Profile;
+    setCachedAuthProfile(token, resolved);
+    return resolved;
+  });
+}
+
+export async function requireAuth(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const header = req.headers.authorization;
+    if (!header?.startsWith("Bearer ")) {
+      throw new AppError(401, "Missing authorization token", "unauthorized");
+    }
+    const token = header.slice(7);
+    const profile = await resolveAuthProfile(token);
+    req.user = profile;
     req.accessToken = token;
     next();
   } catch (err) {

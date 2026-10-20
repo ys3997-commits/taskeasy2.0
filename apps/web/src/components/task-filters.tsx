@@ -48,8 +48,8 @@ export function TaskFilters({
         <option value="all">All frequencies</option>
         <option value="daily">Daily</option>
         <option value="weekly">Weekly</option>
-        <option value="semi_monthly">Semi-monthly</option>
         <option value="thrice_monthly">Thrice Monthly</option>
+        <option value="semi_monthly">Semi-monthly</option>
         <option value="monthly">Monthly</option>
         <option value="quarterly">Quarterly</option>
         <option value="half_yearly">Half-yearly</option>

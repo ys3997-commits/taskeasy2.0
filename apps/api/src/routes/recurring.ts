@@ -25,6 +25,7 @@ import {
   resolveRecurringEditAnchor,
   syncOpenRecurringTasks,
 } from "../services/recurring";
+import { scheduleDueOccurrences } from "../lib/occurrence-runner";
 import { logActivity, notifyUser } from "../lib/activity";
 
 const router = Router();
@@ -37,7 +38,9 @@ router.get("/", async (req: AuthedRequest, res) => {
     let query = admin
       .from("recurring_schedules")
       .select(
-        `*, delegator:profiles!recurring_schedules_delegator_id_fkey(id, first_name, last_name, username), receiver:profiles!recurring_schedules_receiver_id_fkey(id, first_name, last_name, username)`
+        `id, title, frequency, interval, start_date, end_date, is_active, is_paused, next_occurrence_at, delegator_id, receiver_id, created_at,
+         delegator:profiles!recurring_schedules_delegator_id_fkey(id, first_name, last_name, username),
+         receiver:profiles!recurring_schedules_receiver_id_fkey(id, first_name, last_name, username)`
       )
       .order("created_at", { ascending: false });
 
@@ -49,7 +52,7 @@ router.get("/", async (req: AuthedRequest, res) => {
 
     const { data, error } = await query;
     if (error) throw error;
-    await generateDueOccurrences(50);
+    scheduleDueOccurrences(50);
     const schedules = data || [];
     const finished = await completedCurrentOccurrenceIds(schedules);
     res.json({
@@ -162,7 +165,7 @@ router.post("/", requireRole("admin"), async (req: AuthedRequest, res) => {
       );
     }
     const bymonthday =
-      body.frequency === "thrice_monthly"
+      body.frequency === "thrice_monthly" || body.frequency === "semi_monthly"
         ? Number(String(body.start_date).slice(8, 10))
         : body.bymonthday ?? null;
     const next = buildInitialNext({
@@ -346,8 +349,10 @@ router.patch("/:id", async (req: AuthedRequest, res) => {
         "validation_error"
       );
     }
-    if (nextFrequency === "thrice_monthly") {
+    if (nextFrequency === "thrice_monthly" || nextFrequency === "semi_monthly") {
       updates.bymonthday = Number(String(startDate).slice(8, 10));
+    } else if (body.frequency !== undefined) {
+      updates.bymonthday = body.bymonthday ?? null;
     }
     if (body.is_paused !== undefined) {
       if (req.user!.role !== "admin") {

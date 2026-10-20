@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   FREQUENCY_LABELS,
+  FREQUENCY_ORDER,
   canReceiveAssignedTasks,
   isBeforeTodayIst,
   todayIst,
@@ -16,16 +17,7 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { fullName } from "@/lib/utils";
 
-const FREQUENCIES: Frequency[] = [
-  "daily",
-  "weekly",
-  "semi_monthly",
-  "thrice_monthly",
-  "monthly",
-  "quarterly",
-  "half_yearly",
-  "yearly",
-];
+const FREQUENCIES: Frequency[] = FREQUENCY_ORDER;
 
 export default function NewRecurringPage() {
   const { user, loading } = useAuth();
@@ -173,6 +165,16 @@ export default function NewRecurringPage() {
                 </option>
               ))}
             </Select>
+            {frequency === "thrice_monthly" ? (
+              <p className="mt-1 text-xs text-ink-500">
+                Three times a month: start day, then +10 days, then +20 days.
+              </p>
+            ) : null}
+            {frequency === "semi_monthly" ? (
+              <p className="mt-1 text-xs text-ink-500">
+                Twice a month: start day, then +15 days.
+              </p>
+            ) : null}
           </div>
           <div>
             <Label>Every N</Label>

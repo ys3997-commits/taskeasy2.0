@@ -285,27 +285,28 @@ export async function completeCurrentOccurrence(scheduleId: string, actorId: str
 export async function completedCurrentOccurrenceIds(
   schedules: { id: string; start_date?: string | null; next_occurrence_at: string | null }[]
 ): Promise<Set<string>> {
-  const dated = schedules.filter(
-    (schedule) => schedule.id && (schedule.start_date || schedule.next_occurrence_at)
-  );
-  if (!dated.length) return new Set();
+  const nextDay = new Map<string, string>();
+  for (const schedule of schedules) {
+    if (!schedule.id) continue;
+    const day = schedule.start_date
+      ? String(schedule.start_date).slice(0, 10)
+      : schedule.next_occurrence_at
+        ? istDateString(new Date(schedule.next_occurrence_at))
+        : null;
+    if (day) nextDay.set(schedule.id, day);
+  }
+  if (!nextDay.size) return new Set();
+
   const admin = getAdminClient();
+  const scheduleIds = [...nextDay.keys()];
+  const occurrenceDates = [...new Set(nextDay.values())];
   const { data, error } = await admin
     .from("task_occurrences")
     .select("recurring_schedule_id, occurrence_date")
-    .in(
-      "recurring_schedule_id",
-      dated.map((schedule) => schedule.id)
-    );
+    .in("recurring_schedule_id", scheduleIds)
+    .in("occurrence_date", occurrenceDates);
   if (error) throw error;
-  const nextDay = new Map(
-    dated.map((schedule) => [
-      schedule.id,
-      schedule.start_date
-        ? String(schedule.start_date).slice(0, 10)
-        : istDateString(new Date(schedule.next_occurrence_at as string)),
-    ])
-  );
+
   const done = new Set<string>();
   for (const row of data || []) {
     if (nextDay.get(row.recurring_schedule_id) === row.occurrence_date) {
