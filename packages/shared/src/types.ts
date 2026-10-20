@@ -17,6 +17,7 @@ export type Frequency =
   | "daily"
   | "weekly"
   | "semi_monthly"
+  | "thrice_monthly"
   | "monthly"
   | "quarterly"
   | "half_yearly"
@@ -26,6 +27,7 @@ export const FREQUENCY_LABELS: Record<Frequency, string> = {
   daily: "Daily",
   weekly: "Weekly",
   semi_monthly: "Semi-monthly",
+  thrice_monthly: "Thrice Monthly",
   monthly: "Monthly",
   quarterly: "Quarterly",
   half_yearly: "Half-yearly",
@@ -155,9 +157,19 @@ export interface TaskStatusCounts {
   sent_for_approval: number;
 }
 
+/** Completion timing for tasks the user finished as receiver. */
+export interface PunctualityStats {
+  completed: number;
+  on_time: number;
+  late: number;
+  on_time_percent: number;
+  late_percent: number;
+}
+
 export interface DashboardSummary {
   received: TaskStatusCounts;
   delegated: TaskStatusCounts;
+  punctuality: PunctualityStats;
 }
 
 export interface MemberDetailsSummary {
@@ -170,6 +182,7 @@ export interface MemberDetailsSummary {
   work_days: 6 | 7;
   received: TaskStatusCounts;
   delegated: TaskStatusCounts;
+  punctuality: PunctualityStats;
 }
 
 export interface PaginatedResult<T> {

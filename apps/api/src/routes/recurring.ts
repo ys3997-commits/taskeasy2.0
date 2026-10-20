@@ -161,11 +161,15 @@ router.post("/", requireRole("admin"), async (req: AuthedRequest, res) => {
         "validation_error"
       );
     }
+    const bymonthday =
+      body.frequency === "thrice_monthly"
+        ? Number(String(body.start_date).slice(8, 10))
+        : body.bymonthday ?? null;
     const next = buildInitialNext({
       frequency: body.frequency,
       interval: body.interval,
       byweekday: body.byweekday ?? null,
-      bymonthday: body.bymonthday ?? null,
+      bymonthday,
       time_of_day: time,
       start_date: body.start_date,
       end_date: endDate ?? null,
@@ -182,7 +186,7 @@ router.post("/", requireRole("admin"), async (req: AuthedRequest, res) => {
         frequency: body.frequency,
         interval: body.interval,
         byweekday: body.byweekday ?? null,
-        bymonthday: body.bymonthday ?? null,
+        bymonthday,
         time_of_day: time,
         start_date: body.start_date,
         end_date: endDate ?? null,
@@ -342,6 +346,9 @@ router.patch("/:id", async (req: AuthedRequest, res) => {
         "validation_error"
       );
     }
+    if (nextFrequency === "thrice_monthly") {
+      updates.bymonthday = Number(String(startDate).slice(8, 10));
+    }
     if (body.is_paused !== undefined) {
       if (req.user!.role !== "admin") {
         throw new AppError(403, "Only an admin can pause or resume a recurring task", "forbidden");
@@ -398,6 +405,10 @@ router.patch("/:id", async (req: AuthedRequest, res) => {
               updates.end_date !== undefined
                 ? (updates.end_date as string | null)
                 : existing.end_date,
+            bymonthday:
+              typeof updates.bymonthday === "number"
+                ? updates.bymonthday
+                : existing.bymonthday,
           })
         );
       }

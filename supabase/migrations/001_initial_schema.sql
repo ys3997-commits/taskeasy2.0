@@ -8,6 +8,7 @@ CREATE TYPE recurrence_frequency AS ENUM (
   'daily',
   'weekly',
   'semi_monthly',
+  'thrice_monthly',
   'monthly',
   'quarterly',
   'half_yearly',

@@ -20,6 +20,7 @@ const FREQUENCIES: Frequency[] = [
   "daily",
   "weekly",
   "semi_monthly",
+  "thrice_monthly",
   "monthly",
   "quarterly",
   "half_yearly",

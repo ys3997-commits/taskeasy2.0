@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { DashboardSummary, TaskStatusCounts } from "@rajshree/shared";
 import { AppShell } from "@/components/app-shell";
+import { PunctualityPanel } from "@/components/punctuality-panel";
 import { Button, Card } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { fullName } from "@/lib/utils";
+import { cn, fullName } from "@/lib/utils";
 
 const STATUS_CARDS = [
   { key: "pending", label: "Pending" },
@@ -42,16 +43,26 @@ function StatusGrid({
 }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {cards.map((card) => (
-        <Link key={card.key} href={card.href}>
-          <Card className="transition hover:border-brand-500">
-            <p className="text-sm text-ink-500">{card.label}</p>
-            <p className="mt-2 font-display text-3xl font-semibold text-ink-900">
-              {card.value}
-            </p>
-          </Card>
-        </Link>
-      ))}
+      {cards.map((card) => {
+        const overdue = card.key === "overdue";
+        return (
+          <Link key={card.key} href={card.href}>
+            <Card className="transition hover:border-brand-500">
+              <p className={cn("text-sm", overdue ? "text-red-700" : "text-ink-500")}>
+                {card.label}
+              </p>
+              <p
+                className={cn(
+                  "mt-2 font-display text-3xl font-semibold",
+                  overdue ? "text-red-700" : "text-ink-900"
+                )}
+              >
+                {card.value}
+              </p>
+            </Card>
+          </Link>
+        );
+      })}
     </div>
   );
 }
@@ -98,6 +109,8 @@ export default function DashboardPage() {
       </div>
 
       {error ? <p className="mb-4 text-sm text-red-700">{error}</p> : null}
+
+      <PunctualityPanel stats={summary?.punctuality} className="mb-8" />
 
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-medium text-ink-700">Assigned Task</h2>

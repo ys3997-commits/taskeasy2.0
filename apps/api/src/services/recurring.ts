@@ -137,6 +137,7 @@ export function fieldsForNextWindow(schedule: {
   time_of_day: string;
   start_date: string;
   end_date: string | null;
+  bymonthday?: number | null;
   today?: string;
 }) {
   const today = schedule.today || istDateString(new Date());
@@ -145,7 +146,8 @@ export function fieldsForNextWindow(schedule: {
     schedule.end_date,
     schedule.frequency,
     schedule.interval,
-    today
+    today,
+    schedule.bymonthday
   );
   const timeOfDay = String(schedule.time_of_day).slice(0, 8);
   return {
@@ -346,6 +348,7 @@ export async function scheduleNextAfterCompletion(
     time_of_day: String(schedule.time_of_day).slice(0, 8),
     start_date: schedule.start_date,
     end_date: schedule.end_date,
+    bymonthday: schedule.bymonthday,
   });
 
   const { data: updated, error: updateError } = await admin

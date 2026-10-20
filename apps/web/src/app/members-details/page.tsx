@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { MemberDetailsSummary, TaskStatusCounts } from "@rajshree/shared";
 import { AppShell } from "@/components/app-shell";
+import { PunctualityPanel, sumPunctuality } from "@/components/punctuality-panel";
 import { Alert, Card, EmptyState, Input } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -53,16 +54,16 @@ function StatusGrid({
     <div className="grid grid-cols-3 gap-3">
       {cards.map((card) => {
         const value = counts[card.key];
-        const overdue = card.key === "overdue" && value > 0;
+        const overdue = card.key === "overdue";
         return (
           <Link key={card.key} href={`${hrefBase}?status=${card.key}`}>
-            <Card
-              className={cn(
-                "h-full px-3 py-3.5 transition hover:border-brand-500",
-                overdue && "border-red-200 bg-red-50/40"
-              )}
-            >
-              <p className="truncate text-xs font-medium text-ink-500 sm:text-sm">
+            <Card className="h-full px-3 py-3.5 transition hover:border-brand-500">
+              <p
+                className={cn(
+                  "truncate text-xs font-medium sm:text-sm",
+                  overdue ? "text-red-700" : "text-ink-500"
+                )}
+              >
                 {card.label}
               </p>
               <p
@@ -154,6 +155,10 @@ export default function MembersDetailsPage() {
 
   const companyAssigned = useMemo(() => sumCounts(members, "received"), [members]);
   const companyDelegated = useMemo(() => sumCounts(members, "delegated"), [members]);
+  const companyPunctuality = useMemo(
+    () => sumPunctuality(members.map((member) => member.punctuality)),
+    [members]
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -208,9 +213,15 @@ export default function MembersDetailsPage() {
                 Rajshree Energy
               </h2>
               <p className="mt-1 text-sm text-ink-500">
-                Company-wide pending, overdue, and approval totals.
+                Company-wide pending, overdue, approval, and on-time totals.
               </p>
             </div>
+
+            <PunctualityPanel
+              stats={companyPunctuality}
+              audience="company"
+              className="mb-5"
+            />
 
             <TaskSides
               assignedHref="/members-details/company/assigned"
@@ -236,7 +247,7 @@ export default function MembersDetailsPage() {
                 key={member.id}
                 className="scroll-mt-24 rounded-xl border border-ink-200 bg-white/80 p-5 shadow-sm"
               >
-                <div className="mb-5 flex flex-wrap items-center gap-2">
+                <div className="mb-4 flex flex-wrap items-center gap-2">
                   <h2 className="font-display text-2xl font-semibold text-ink-900">
                     {fullName(member)}
                   </h2>
@@ -257,6 +268,14 @@ export default function MembersDetailsPage() {
                   ) : null}
                   <span className="text-xs text-ink-500">@{member.username}</span>
                 </div>
+
+                <PunctualityPanel
+                  stats={member.punctuality}
+                  audience="member"
+                  memberName={fullName(member)}
+                  compact
+                  className="mb-5"
+                />
 
                 <TaskSides
                   assignedHref={`/members-details/${member.id}/assigned`}

@@ -236,10 +236,37 @@ function countByDisplayStatus(
   return summary;
 }
 
+function punctualityFromCompleted(
+  rows: { lifecycle: string; deadline: string; completed_at: string | null }[]
+) {
+  let onTime = 0;
+  let late = 0;
+  for (const row of rows) {
+    if (row.lifecycle !== "completed" || !row.completed_at) continue;
+    if (new Date(row.completed_at).getTime() <= new Date(row.deadline).getTime()) {
+      onTime += 1;
+    } else {
+      late += 1;
+    }
+  }
+  const completed = onTime + late;
+  const onTimePercent = completed === 0 ? 0 : Math.round((onTime / completed) * 100);
+  return {
+    completed,
+    on_time: onTime,
+    late,
+    on_time_percent: onTimePercent,
+    late_percent: completed === 0 ? 0 : 100 - onTimePercent,
+  };
+}
+
 export async function dashboardSummary(userId: string, _role: string) {
   const admin = getAdminClient();
   const tasks = () =>
-    admin.from("tasks").select("lifecycle, deadline").neq("lifecycle", "cancelled");
+    admin
+      .from("tasks")
+      .select("lifecycle, deadline, completed_at")
+      .neq("lifecycle", "cancelled");
   const schedules = () =>
     admin
       .from("recurring_schedules")
@@ -294,6 +321,7 @@ export async function dashboardSummary(userId: string, _role: string) {
       blockedScheduleIds,
       now
     ),
+    punctuality: punctualityFromCompleted(receivedRes.data || []),
   };
 }
 
@@ -306,7 +334,9 @@ export async function membersDetailsSummary() {
       .order("last_name", { ascending: true }),
     admin
       .from("tasks")
-      .select("lifecycle, deadline, receiver_id, delegator_id, recurring_schedule_id")
+      .select(
+        "lifecycle, deadline, completed_at, receiver_id, delegator_id, recurring_schedule_id"
+      )
       .neq("lifecycle", "cancelled"),
     admin
       .from("recurring_schedules")
@@ -382,6 +412,7 @@ export async function membersDetailsSummary() {
 
   return profiles.map((profile) => {
     const blocked = openByUser.get(profile.id) || new Set<string>();
+    const received = receivedTasks.get(profile.id) || [];
     return {
       id: profile.id,
       first_name: profile.first_name,
@@ -391,7 +422,7 @@ export async function membersDetailsSummary() {
       is_active: profile.is_active,
       work_days: profile.work_days,
       received: countByDisplayStatus(
-        receivedTasks.get(profile.id) || [],
+        received,
         withFinished(receivedSchedules.get(profile.id) || []),
         blocked,
         now
@@ -402,6 +433,7 @@ export async function membersDetailsSummary() {
         blocked,
         now
       ),
+      punctuality: punctualityFromCompleted(received),
     };
   });
 }
