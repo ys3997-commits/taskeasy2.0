@@ -231,6 +231,7 @@ router.get("/:id/tasks", requireRole("admin"), async (req, res) => {
       .from("tasks")
       .select("*")
       .or(`receiver_id.eq.${req.params.id},delegator_id.eq.${req.params.id}`)
+      .or("lifecycle.neq.completed,cancelled_at.is.null")
       .order("deadline", { ascending: true });
     if (error) throw error;
     res.json({ data });

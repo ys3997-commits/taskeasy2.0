@@ -74,7 +74,9 @@ export async function listTasks(params: ListTasksParams) {
     .select(
       `*, delegator:profiles!tasks_delegator_id_fkey(${PROFILE_SELECT}), receiver:profiles!tasks_receiver_id_fkey(${PROFILE_SELECT}), ${scheduleSelect}, task_occurrences(occurrence_date)`,
       { count: "exact" }
-    );
+    )
+    // Cleared finished tasks stay stored for on-time stats, with cancelled_at set.
+    .or("lifecycle.neq.completed,cancelled_at.is.null");
 
   const view = params.view || "received";
   if (view === "received") {
@@ -284,6 +286,18 @@ function countByDisplayStatus(
   return summary;
 }
 
+function punctualityFromCounts(onTime: number, late: number) {
+  const completed = onTime + late;
+  const onTimePercent = completed === 0 ? 0 : Math.round((onTime / completed) * 100);
+  return {
+    completed,
+    on_time: onTime,
+    late,
+    on_time_percent: onTimePercent,
+    late_percent: completed === 0 ? 0 : 100 - onTimePercent,
+  };
+}
+
 function punctualityFromCompleted(
   rows: { lifecycle: string; deadline: string; completed_at: string | null }[]
 ) {
@@ -297,15 +311,53 @@ function punctualityFromCompleted(
       late += 1;
     }
   }
-  const completed = onTime + late;
-  const onTimePercent = completed === 0 ? 0 : Math.round((onTime / completed) * 100);
-  return {
-    completed,
-    on_time: onTime,
-    late,
-    on_time_percent: onTimePercent,
-    late_percent: completed === 0 ? 0 : 100 - onTimePercent,
-  };
+  return punctualityFromCounts(onTime, late);
+}
+
+function withArchivedPunctuality(
+  live: ReturnType<typeof punctualityFromCounts>,
+  archived: { on_time: number; late: number } | undefined
+) {
+  if (!archived || (archived.on_time === 0 && archived.late === 0)) return live;
+  return punctualityFromCounts(live.on_time + archived.on_time, live.late + archived.late);
+}
+
+let warnedMissingPunctualityArchive = false;
+
+/** Totals for completed tasks already removed by Clear Finished Tasks. */
+async function loadPunctualityArchive(receiverIds: string[]) {
+  const totals = new Map<string, { on_time: number; late: number }>();
+  const ids = [...new Set(receiverIds.filter(Boolean))];
+  if (!ids.length) return totals;
+
+  const admin = getAdminClient();
+  const { data, error } = await admin
+    .from("punctuality_archive")
+    .select("receiver_id, on_time, late")
+    .in("receiver_id", ids);
+  if (error) {
+    const missing =
+      error.code === "PGRST205" ||
+      error.code === "42P01" ||
+      error.message.includes("punctuality_archive");
+    if (missing) {
+      if (!warnedMissingPunctualityArchive) {
+        warnedMissingPunctualityArchive = true;
+        console.warn(
+          "punctuality_archive is missing. Run supabase/migrations/007_punctuality_archive.sql so cleared tasks keep on-time percentages."
+        );
+      }
+      return totals;
+    }
+    throw error;
+  }
+  for (const row of data || []) {
+    totals.set(row.receiver_id, {
+      on_time: Number(row.on_time) || 0,
+      late: Number(row.late) || 0,
+    });
+  }
+  return totals;
 }
 
 export async function dashboardSummary(userId: string, _role: string) {
@@ -314,7 +366,9 @@ export async function dashboardSummary(userId: string, _role: string) {
   const [tasksRes, schedulesRes] = await Promise.all([
     admin
       .from("tasks")
-      .select("lifecycle, deadline, completed_at, receiver_id, delegator_id, recurring_schedule_id")
+      .select(
+        "lifecycle, deadline, completed_at, cancelled_at, receiver_id, delegator_id, recurring_schedule_id"
+      )
       .or(involved)
       .neq("lifecycle", "cancelled"),
     admin
@@ -377,12 +431,17 @@ export async function dashboardSummary(userId: string, _role: string) {
     blockedScheduleIds,
     now
   );
-  received.completed = receivedCompleted.length;
-  delegated.completed = delegatedCompleted.length;
+  const stillListed = (task: { cancelled_at: string | null }) => !task.cancelled_at;
+  received.completed = receivedCompleted.filter(stillListed).length;
+  delegated.completed = delegatedCompleted.filter(stillListed).length;
+  const archive = await loadPunctualityArchive([userId]);
   return {
     received,
     delegated,
-    punctuality: punctualityFromCompleted(receivedCompleted),
+    punctuality: withArchivedPunctuality(
+      punctualityFromCompleted(receivedCompleted),
+      archive.get(userId)
+    ),
   };
 }
 
@@ -396,7 +455,7 @@ export async function membersDetailsSummary() {
     admin
       .from("tasks")
       .select(
-        "lifecycle, deadline, completed_at, receiver_id, delegator_id, recurring_schedule_id"
+        "lifecycle, deadline, completed_at, cancelled_at, receiver_id, delegator_id, recurring_schedule_id"
       )
       .neq("lifecycle", "cancelled"),
     admin
@@ -472,9 +531,16 @@ export async function membersDetailsSummary() {
       current_occurrence_completed: finished.has(schedule.id),
     }));
 
+  const archive = await loadPunctualityArchive(profiles.map((profile) => profile.id));
+
   return profiles.map((profile) => {
     const blocked = openByUser.get(profile.id) || new Set<string>();
-    const received = receivedTasks.get(profile.id) || [];
+    const receivedAll = receivedTasks.get(profile.id) || [];
+    const delegatedAll = delegatedTasks.get(profile.id) || [];
+    const stillListed = (task: { lifecycle: string; cancelled_at: string | null }) =>
+      !(task.lifecycle === "completed" && task.cancelled_at);
+    const received = receivedAll.filter(stillListed);
+    const delegated = delegatedAll.filter(stillListed);
     return {
       id: profile.id,
       first_name: profile.first_name,
@@ -490,12 +556,15 @@ export async function membersDetailsSummary() {
         now
       ),
       delegated: countByDisplayStatus(
-        delegatedTasks.get(profile.id) || [],
+        delegated,
         withFinished(delegatedSchedules.get(profile.id) || []),
         blocked,
         now
       ),
-      punctuality: punctualityFromCompleted(received),
+      punctuality: withArchivedPunctuality(
+        punctualityFromCompleted(receivedAll),
+        archive.get(profile.id)
+      ),
     };
   });
 }

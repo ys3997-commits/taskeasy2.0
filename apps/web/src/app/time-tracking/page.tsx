@@ -77,7 +77,6 @@ export default function TimeTrackingPage() {
   useEffect(() => {
     if (loading) return;
     if (!user) router.replace("/login");
-    else if (user.role !== "admin") router.replace("/dashboard");
   }, [user, loading, router]);
 
   useEffect(() => {
@@ -91,8 +90,9 @@ export default function TimeTrackingPage() {
   }, [user]);
 
   useEffect(() => {
-    if (user?.role !== "admin") return;
-    if (tab === "member" && !memberId) {
+    if (loading || !user) return;
+    const isAdmin = user.role === "admin";
+    if (isAdmin && tab === "member" && !memberId) {
       setSessions([]);
       setLoadingRows(false);
       return;
@@ -101,7 +101,7 @@ export default function TimeTrackingPage() {
     setLoadingRows(true);
     setError("");
     api
-      .loginSessions(tab === "member" ? memberId : undefined)
+      .loginSessions(isAdmin && tab === "member" ? memberId : undefined)
       .then((res) => {
         if (!cancelled) setSessions(res.data);
       })
@@ -117,7 +117,7 @@ export default function TimeTrackingPage() {
     return () => {
       cancelled = true;
     };
-  }, [user, tab, memberId]);
+  }, [user, loading, tab, memberId]);
 
   const members = useMemo(
     () =>
@@ -184,7 +184,7 @@ export default function TimeTrackingPage() {
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [firstLogins]);
 
-  if (loading || !user || user.role !== "admin") {
+  if (loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-ink-50 text-ink-500">
         Loading…
@@ -192,10 +192,16 @@ export default function TimeTrackingPage() {
     );
   }
 
+  const isAdmin = user.role === "admin";
+
   return (
     <AppShell>
       <h1 className="font-display text-3xl font-semibold text-ink-900">Time Tracking</h1>
+      {isAdmin ? null : (
+        <p className="mt-2 text-sm text-ink-500">Your first sign-in on each day.</p>
+      )}
 
+      {isAdmin ? (
       <div className="mt-6 inline-flex rounded-md border border-ink-200 bg-white p-1">
         {(
           [
@@ -216,6 +222,7 @@ export default function TimeTrackingPage() {
           </button>
         ))}
       </div>
+      ) : null}
 
       {error ? (
         <div className="mt-4">
@@ -223,7 +230,7 @@ export default function TimeTrackingPage() {
         </div>
       ) : null}
 
-      {tab === "member" ? (
+      {isAdmin && tab === "member" ? (
         <div className="mt-4 max-w-sm">
           <Label htmlFor="time-tracking-member">Member</Label>
           <Select
@@ -245,12 +252,12 @@ export default function TimeTrackingPage() {
       <div className="mt-4">
         {loadingRows ? (
           <p className="text-sm text-ink-500">Loading…</p>
-        ) : tab === "member" && !memberId ? (
+        ) : isAdmin && tab === "member" && !memberId ? (
           <EmptyState
             title="Choose a team member"
             description="Their first sign-in on each date is listed here."
           />
-        ) : tab === "all" ? (
+        ) : isAdmin && tab === "all" ? (
           allRows.length === 0 ? (
             <EmptyState
               title="No team members yet"

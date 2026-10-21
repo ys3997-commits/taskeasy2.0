@@ -18,6 +18,7 @@ import { AppShell } from "@/components/app-shell";
 import { Button, EmptyState, Select } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { downloadRecurringExcel, downloadRecurringPdf } from "@/lib/recurring-export";
 import { formatDate, fullName } from "@/lib/utils";
 
 type SortKey = "title" | "delegator" | "receiver" | "start" | "end" | "frequency" | "status";
@@ -76,6 +77,27 @@ function compareSchedules(
   return compareText(scheduleStatus(a), scheduleStatus(b));
 }
 
+function sortScheduleList(
+  list: RecurringSchedule[],
+  sortKey: SortKey,
+  sortDir: SortDir
+) {
+  return [...list].sort((a, b) => {
+    if (sortKey === "start") {
+      return compareDateField(a, b, (schedule) => schedule.start_date, sortDir);
+    }
+    if (sortKey === "end") {
+      return compareDateField(a, b, (schedule) => schedule.end_date, sortDir);
+    }
+    if (sortKey === "receiver" && sortDir === "asc") {
+      return compareDefaultCascade(a, b);
+    }
+    const primary = compareSchedules(a, b, sortKey);
+    if (primary !== 0) return sortDir === "asc" ? primary : -primary;
+    return compareDefaultCascade(a, b);
+  });
+}
+
 function compareDateField(
   a: RecurringSchedule,
   b: RecurringSchedule,
@@ -103,6 +125,7 @@ export default function RecurringListPage() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [receiverId, setReceiverId] = useState("");
   const [staffOptions, setStaffOptions] = useState<{ id: string; label: string }[]>([]);
+  const [exporting, setExporting] = useState<null | "excel" | "pdf">(null);
 
   const cancelledCount = useMemo(
     () => schedules.filter((s) => !s.is_active && s.is_paused).length,
@@ -132,22 +155,10 @@ export default function RecurringListPage() {
     };
   }, [filteredSchedules]);
 
-  const sortedSchedules = useMemo(() => {
-    return [...filteredSchedules].sort((a, b) => {
-      if (sortKey === "start") {
-        return compareDateField(a, b, (schedule) => schedule.start_date, sortDir);
-      }
-      if (sortKey === "end") {
-        return compareDateField(a, b, (schedule) => schedule.end_date, sortDir);
-      }
-      if (sortKey === "receiver" && sortDir === "asc") {
-        return compareDefaultCascade(a, b);
-      }
-      const primary = compareSchedules(a, b, sortKey);
-      if (primary !== 0) return sortDir === "asc" ? primary : -primary;
-      return compareDefaultCascade(a, b);
-    });
-  }, [filteredSchedules, sortKey, sortDir]);
+  const sortedSchedules = useMemo(
+    () => sortScheduleList(filteredSchedules, sortKey, sortDir),
+    [filteredSchedules, sortKey, sortDir]
+  );
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -156,6 +167,20 @@ export default function RecurringListPage() {
     }
     setSortKey(key);
     setSortDir("asc");
+  }
+
+  async function downloadAll(kind: "excel" | "pdf") {
+    setError("");
+    setExporting(kind);
+    try {
+      const rows = sortScheduleList(schedules, sortKey, sortDir);
+      if (kind === "excel") await downloadRecurringExcel(rows);
+      else await downloadRecurringPdf(rows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not export recurring tasks");
+    } finally {
+      setExporting(null);
+    }
   }
 
   async function load() {
@@ -190,8 +215,23 @@ export default function RecurringListPage() {
         <h1 className="font-display text-3xl font-semibold text-ink-900">
           Recurring Tasks
         </h1>
-        {isAdmin ? (
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            disabled={!schedules.length || exporting !== null}
+            onClick={() => void downloadAll("excel")}
+          >
+            {exporting === "excel" ? "Preparing Excel…" : "Excel"}
+          </Button>
+          <Button
+            variant="secondary"
+            disabled={!schedules.length || exporting !== null}
+            onClick={() => void downloadAll("pdf")}
+          >
+            {exporting === "pdf" ? "Preparing PDF…" : "PDF"}
+          </Button>
+          {isAdmin ? (
+            <>
             <Link href="/recurring/new">
               <Button>Create Recurring Task</Button>
             </Link>
@@ -224,8 +264,9 @@ export default function RecurringListPage() {
             >
               {clearingCancelled ? "Clearing…" : "Clear Cancelled Tasks"}
             </Button>
-          </div>
-        ) : null}
+            </>
+          ) : null}
+        </div>
       </div>
 
       {isAdmin ? (

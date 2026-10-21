@@ -264,7 +264,11 @@ router.get("/completed/count", requireRole("admin"), async (_req, res) => {
     const protectedIds = await pendingApprovalTaskIds();
     const [completedResult, cancelledResult, awaitingResult] = await Promise.all([
       excludePending(
-        admin.from("tasks").select("id", { count: "exact", head: true }).eq("lifecycle", "completed"),
+        admin
+          .from("tasks")
+          .select("id", { count: "exact", head: true })
+          .eq("lifecycle", "completed")
+          .is("cancelled_at", null),
         protectedIds
       ),
       excludePending(
@@ -295,19 +299,43 @@ router.post("/completed/clear", requireRole("admin"), async (_req, res) => {
     const protectedIds = await pendingApprovalTaskIds();
     let completed = 0;
     let cancelled = 0;
+    const clearedAt = new Date().toISOString();
+
+    // Keep completed rows so on-time / late percentages stay after the list is cleared.
+    for (let batch = 0; batch < 50; batch += 1) {
+      const query = excludePending(
+        admin
+          .from("tasks")
+          .select("id")
+          .eq("lifecycle", "completed")
+          .is("cancelled_at", null)
+          .limit(200),
+        protectedIds
+      );
+      const { data, error } = await query;
+      if (error) throw error;
+      const ids = (data || []).map((row) => row.id as string);
+      if (ids.length === 0) break;
+      const { error: updateError } = await admin
+        .from("tasks")
+        .update({ cancelled_at: clearedAt })
+        .in("id", ids);
+      if (updateError) throw updateError;
+      await removeTaskAttachments(ids);
+      completed += ids.length;
+    }
 
     for (let batch = 0; batch < 50; batch += 1) {
       const query = excludePending(
-        admin.from("tasks").delete().in("lifecycle", ["completed", "cancelled"]),
+        admin.from("tasks").delete().eq("lifecycle", "cancelled"),
         protectedIds
       );
-      const { data, error } = await query.select("id, lifecycle");
+      const { data, error } = await query.select("id");
       if (error) throw error;
       const rows = data || [];
       if (rows.length === 0) break;
       await removeTaskAttachments(rows.map((row) => row.id as string));
-      completed += rows.filter((row) => row.lifecycle === "completed").length;
-      cancelled += rows.filter((row) => row.lifecycle === "cancelled").length;
+      cancelled += rows.length;
     }
 
     bustTaskCaches();

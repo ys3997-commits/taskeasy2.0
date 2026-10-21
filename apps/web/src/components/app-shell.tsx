@@ -41,7 +41,7 @@ const nav: {
     icon: Contact,
     adminOnly: true,
   },
-  { href: "/time-tracking", label: "Time Tracking", icon: Clock, adminOnly: true },
+  { href: "/time-tracking", label: "Time Tracking", icon: Clock },
   {
     href: "/tasks/clear-completed",
     label: "Clear Finished Tasks",

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { istDateString } from "@rajshree/shared";
 import { getAdminClient } from "../lib/supabase";
 import { AppError, sendError } from "../lib/errors";
-import { requireAuth, requirePasswordChanged, requireRole } from "../middleware/auth";
+import { AuthedRequest, requireAuth, requirePasswordChanged } from "../middleware/auth";
 
 type SessionRow = { id: string; user_id: string; logged_in_at: string };
 
@@ -26,15 +26,20 @@ const router = Router();
 
 router.use(requireAuth, requirePasswordChanged);
 
-router.get("/", requireRole("admin"), async (req, res) => {
+router.get("/", async (req: AuthedRequest, res) => {
   try {
-    const userId = typeof req.query.user_id === "string" ? req.query.user_id : "";
+    const isAdmin = req.user!.role === "admin";
+    const requested = typeof req.query.user_id === "string" ? req.query.user_id : "";
     if (
-      userId &&
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
+      requested &&
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requested)
     ) {
       throw new AppError(400, "Invalid member", "validation_error");
     }
+    if (!isAdmin && requested && requested !== req.user!.id) {
+      throw new AppError(403, "You can only view your own time tracking", "forbidden");
+    }
+    const userId = isAdmin ? requested : req.user!.id;
 
     const admin = getAdminClient();
     const sessions: SessionRow[] = [];
