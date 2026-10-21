@@ -18,7 +18,6 @@ import {
 import {
   buildInitialNext,
   completeCurrentOccurrence,
-  completedCurrentOccurrenceIds,
   fieldsForNextWindow,
   generateDueOccurrences,
   recurrenceEditDelta,
@@ -26,7 +25,14 @@ import {
   syncOpenRecurringTasks,
 } from "../services/recurring";
 import { scheduleDueOccurrences } from "../lib/occurrence-runner";
+import { cachedValue, invalidateCachePrefix } from "../lib/response-cache";
 import { logActivity, notifyUser } from "../lib/activity";
+
+function bustListCaches() {
+  invalidateCachePrefix("recurring-list:");
+  invalidateCachePrefix("dashboard:");
+  invalidateCachePrefix("staff:details-summary");
+}
 
 const router = Router();
 
@@ -34,33 +40,34 @@ router.use(requireAuth, requirePasswordChanged);
 
 router.get("/", async (req: AuthedRequest, res) => {
   try {
-    const admin = getAdminClient();
-    let query = admin
-      .from("recurring_schedules")
-      .select(
-        `id, title, frequency, interval, start_date, end_date, is_active, is_paused, next_occurrence_at, delegator_id, receiver_id, created_at,
-         delegator:profiles!recurring_schedules_delegator_id_fkey(id, first_name, last_name, username),
-         receiver:profiles!recurring_schedules_receiver_id_fkey(id, first_name, last_name, username)`
-      )
-      .order("created_at", { ascending: false });
-
-    if (req.user!.role !== "admin") {
-      query = query.or(
-        `delegator_id.eq.${req.user!.id},receiver_id.eq.${req.user!.id}`
-      );
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
     scheduleDueOccurrences(50);
-    const schedules = data || [];
-    const finished = await completedCurrentOccurrenceIds(schedules);
-    res.json({
-      data: schedules.map((schedule) => ({
-        ...schedule,
-        current_occurrence_completed: finished.has(schedule.id),
-      })),
+    const userId = req.user!.id;
+    const role = req.user!.role;
+    const payload = await cachedValue(`recurring-list:${role}:${userId}`, 10_000, async () => {
+      const admin = getAdminClient();
+      let query = admin
+        .from("recurring_schedules")
+        .select(
+          `id, title, frequency, interval, start_date, end_date, is_active, is_paused, next_occurrence_at, delegator_id, receiver_id, created_at,
+           delegator:profiles!recurring_schedules_delegator_id_fkey(id, first_name, last_name, username),
+           receiver:profiles!recurring_schedules_receiver_id_fkey(id, first_name, last_name, username)`
+        )
+        .order("created_at", { ascending: false });
+
+      if (role !== "admin") {
+        query = query.or(`delegator_id.eq.${userId},receiver_id.eq.${userId}`);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return {
+        data: (data || []).map((schedule) => ({
+          ...schedule,
+          current_occurrence_completed: false,
+        })),
+      };
     });
+    res.json(payload);
   } catch (err) {
     sendError(res, err);
   }
@@ -84,6 +91,7 @@ router.post("/cancelled/clear", requireRole("admin"), async (_req, res) => {
       deleted += rows.length;
     }
 
+    bustListCaches();
     res.json({ deleted });
   } catch (err) {
     sendError(res, err);
@@ -204,6 +212,7 @@ router.post("/", requireRole("admin"), async (req: AuthedRequest, res) => {
     // Immediately generate if first occurrence is due
     await generateDueOccurrences(50);
 
+    bustListCaches();
     res.status(201).json({ schedule: data });
   } catch (err) {
     sendError(res, err);
@@ -445,6 +454,7 @@ router.patch("/:id", async (req: AuthedRequest, res) => {
       body: `"${data.title}" schedule was updated.`,
     });
 
+    bustListCaches();
     res.json({ schedule: data });
   } catch (err) {
     sendError(res, err);
@@ -470,6 +480,7 @@ router.post("/:id/pause", requireRole("admin"), async (req: AuthedRequest, res) 
       .select("*")
       .single();
     if (error) throw error;
+    bustListCaches();
     res.json({ schedule: data });
   } catch (err) {
     sendError(res, err);
@@ -511,6 +522,7 @@ router.post("/:id/resume", requireRole("admin"), async (req: AuthedRequest, res)
       .select("*")
       .single();
     if (error) throw error;
+    bustListCaches();
     res.json({ schedule: data });
   } catch (err) {
     sendError(res, err);
@@ -536,6 +548,7 @@ router.post("/:id/complete", async (req: AuthedRequest, res) => {
     }
 
     const schedule = await completeCurrentOccurrence(existing.id, userId);
+    bustListCaches();
     res.json({ schedule });
   } catch (err) {
     sendError(res, err);
@@ -558,6 +571,7 @@ router.post("/:id/cancel", requireRole("admin"), async (req: AuthedRequest, res)
       .select("*")
       .single();
     if (error) throw error;
+    bustListCaches();
     res.json({ schedule: data });
   } catch (err) {
     sendError(res, err);

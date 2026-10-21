@@ -45,6 +45,25 @@ function formatLoginDateTime(value: string): string {
   return `${formatDate(value)}, ${formatClock(value)}`;
 }
 
+/** First sign-in at or after 11:00 AM IST counts as late. */
+const LATE_AFTER_MINUTES = 11 * 60;
+
+function clockMinutes(value: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: IST_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(value));
+  const read = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value ?? 0);
+  return read("hour") * 60 + read("minute");
+}
+
+function isLateLogin(value: string): boolean {
+  return clockMinutes(value) >= LATE_AFTER_MINUTES;
+}
+
 export default function TimeTrackingPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -176,10 +195,6 @@ export default function TimeTrackingPage() {
   return (
     <AppShell>
       <h1 className="font-display text-3xl font-semibold text-ink-900">Time Tracking</h1>
-      <p className="mt-1 text-sm text-ink-500">
-        All members lists everyone A–Z with their latest first sign-in of the day. One member shows
-        every date. Times are shown in IST.
-      </p>
 
       <div className="mt-6 inline-flex rounded-md border border-ink-200 bg-white p-1">
         {(
@@ -248,19 +263,37 @@ export default function TimeTrackingPage() {
                   <tr>
                     <th className="px-4 py-3 font-medium">Member</th>
                     <th className="px-4 py-3 font-medium">Login</th>
+                    <th className="px-4 py-3 font-medium">After 11:00 AM</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {allRows.map((row) => (
-                    <tr key={row.id} className="border-t border-ink-100">
-                      <td className="px-4 py-3 font-medium text-ink-900">{row.name}</td>
-                      <td className="px-4 py-3 text-ink-700">
-                        {row.loggedInAt
-                          ? formatLoginDateTime(row.loggedInAt)
-                          : "Yet to Log In"}
-                      </td>
-                    </tr>
-                  ))}
+                  {allRows.map((row) => {
+                    const today = istDateString(new Date());
+                    const signedInToday =
+                      row.loggedInAt !== null &&
+                      istDateString(new Date(row.loggedInAt)) === today;
+                    const late = signedInToday
+                      ? isLateLogin(row.loggedInAt as string)
+                      : isLateLogin(new Date().toISOString());
+                    return (
+                      <tr
+                        key={row.id}
+                        className={late ? "border-t border-red-100 bg-red-50" : "border-t border-ink-100"}
+                      >
+                        <td className="px-4 py-3 font-medium text-ink-900">{row.name}</td>
+                        <td className="px-4 py-3 text-ink-700">
+                          {signedInToday && row.loggedInAt
+                            ? formatClock(row.loggedInAt)
+                            : row.loggedInAt
+                              ? formatLoginDateTime(row.loggedInAt)
+                              : "Yet to Log In"}
+                        </td>
+                        <td className={`px-4 py-3 ${late ? "font-medium text-red-700" : "text-ink-500"}`}>
+                          {late ? "Late" : signedInToday ? "On time" : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -277,8 +310,16 @@ export default function TimeTrackingPage() {
                 <h2 className="border-b border-ink-100 px-4 py-3 text-base font-semibold text-ink-900">
                   {formatDate(group.date)}
                 </h2>
-                <p className="border-t border-ink-100 px-4 py-3 text-sm text-ink-700">
+                <p
+                  className={cn(
+                    "border-t border-ink-100 px-4 py-3 text-sm",
+                    isLateLogin(group.session.logged_in_at)
+                      ? "bg-red-50 font-medium text-red-700"
+                      : "text-ink-700"
+                  )}
+                >
                   {formatClock(group.session.logged_in_at)}
+                  {isLateLogin(group.session.logged_in_at) ? " · Late" : ""}
                 </p>
               </Card>
             ))}

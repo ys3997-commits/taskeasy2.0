@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Bell,
+  CircleAlert,
   CheckSquare,
   ClipboardList,
   Clock,
@@ -18,7 +18,6 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { api } from "@/lib/api";
 import { cn, fullName } from "@/lib/utils";
 import { Button } from "./ui";
 
@@ -30,6 +29,7 @@ const nav: {
   danger?: boolean;
 }[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/tasks/overdue", label: "Overdue Tasks", icon: CircleAlert, adminOnly: true },
   { href: "/tasks/received", label: "Assigned Task", icon: ClipboardList },
   { href: "/tasks/delegated", label: "Delegated Tasks", icon: CheckSquare },
   { href: "/recurring", label: "Recurring Tasks", icon: RefreshCw },
@@ -56,7 +56,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [unread, setUnread] = useState(0);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -64,36 +63,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       router.replace("/change-password");
     }
   }, [user, loading, router, pathname]);
-
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-
-    function loadUnread() {
-      api
-        .unreadNotificationCount()
-        .then((res) => {
-          if (!cancelled) setUnread(res.count);
-        })
-        .catch(() => undefined);
-    }
-
-    loadUnread();
-    const onFocus = () => loadUnread();
-    window.addEventListener("focus", onFocus);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("focus", onFocus);
-    };
-  }, [user]);
-
-  useEffect(() => {
-    if (!user || pathname !== "/notifications") return;
-    api
-      .unreadNotificationCount()
-      .then((res) => setUnread(res.count))
-      .catch(() => undefined);
-  }, [user, pathname]);
 
   if (loading || !user) {
     return (
@@ -131,16 +100,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Link
-              href="/notifications"
-              className="relative rounded-md p-2 text-ink-600 hover:bg-ink-100"
-              aria-label="Notifications"
-            >
-              <Bell size={18} />
-              {unread > 0 ? (
-                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-600" />
-              ) : null}
-            </Link>
             <div className="hidden text-right sm:block">
               <p className="text-sm font-medium text-ink-900">{fullName(user)}</p>
               <p className="text-xs text-ink-500">

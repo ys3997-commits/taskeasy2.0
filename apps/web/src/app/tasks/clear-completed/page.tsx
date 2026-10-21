@@ -95,12 +95,7 @@ export default function ClearCompletedPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-3xl space-y-6">
-        <div>
-          <h1 className="font-display text-3xl font-semibold text-ink-900">Clear Finished Tasks</h1>
-          <p className="mt-1 text-sm text-ink-500">
-            Remove completed and cancelled tasks for every team member and admin.
-          </p>
-        </div>
+        <h1 className="font-display text-3xl font-semibold text-ink-900">Clear Finished Tasks</h1>
 
         {error ? <Alert>{error}</Alert> : null}
         {result ? (

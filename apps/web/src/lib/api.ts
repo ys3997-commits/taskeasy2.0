@@ -1,7 +1,6 @@
 import type {
   DashboardSummary,
   MemberDetailsSummary,
-  Notification,
   Profile,
   RecurringSchedule,
   Task,
@@ -231,6 +230,9 @@ export const api = {
   dashboardSummary() {
     return request<DashboardSummary>("/tasks/dashboard/summary");
   },
+  overdueTasks() {
+    return request<{ data: Task[] }>("/tasks/overdue");
+  },
   listTasks(params: Record<string, string | number | undefined>) {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => {
@@ -384,19 +386,5 @@ export const api = {
     return request<{ schedule: RecurringSchedule }>(`/recurring/${id}/complete`, {
       method: "POST",
     });
-  },
-  notifications() {
-    return request<{ data: Notification[] }>("/notifications");
-  },
-  unreadNotificationCount() {
-    return request<{ count: number }>("/notifications/unread-count");
-  },
-  markNotificationRead(id: string) {
-    return request<{ notification: Notification }>(`/notifications/${id}/read`, {
-      method: "POST",
-    });
-  },
-  markAllNotificationsRead() {
-    return request<{ ok: boolean }>("/notifications/read-all", { method: "POST" });
   },
 };

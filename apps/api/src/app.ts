@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import { config } from "./config";
+import { clearAllNotifications } from "./lib/activity";
 import authRoutes from "./routes/auth";
 import staffRoutes from "./routes/staff";
 import taskRoutes from "./routes/tasks";
@@ -10,6 +11,17 @@ import recurringRoutes from "./routes/recurring";
 import cronRoutes from "./routes/cron";
 import notificationRoutes from "./routes/notifications";
 import timeTrackingRoutes from "./routes/time-tracking";
+
+let notificationsCleared = false;
+
+function ensureNotificationsCleared() {
+  if (notificationsCleared) return;
+  notificationsCleared = true;
+  void clearAllNotifications().catch((err) => {
+    notificationsCleared = false;
+    console.error("Failed to clear notifications", err);
+  });
+}
 
 function createApiRouter() {
   const router = express.Router();
@@ -31,6 +43,7 @@ function createApiRouter() {
 
 export function createApp() {
   const app = express();
+  ensureNotificationsCleared();
 
   app.use(helmet());
   const allowedOrigins = [

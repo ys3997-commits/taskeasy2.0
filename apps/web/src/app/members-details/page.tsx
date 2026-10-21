@@ -178,15 +178,9 @@ export default function MembersDetailsPage() {
   return (
     <AppShell>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-semibold text-ink-900">
-            Members Details
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm text-ink-500">
-            Company totals first, then each member. Open any status box to see
-            those tasks.
-          </p>
-        </div>
+        <h1 className="font-display text-3xl font-semibold text-ink-900">
+          Members Details
+        </h1>
         <div className="w-full max-w-xs">
           <Input
             value={query}

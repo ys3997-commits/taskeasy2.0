@@ -17,20 +17,31 @@ export async function logActivity(params: {
   });
 }
 
-export async function notifyUser(params: {
+/** Task notifications are disabled — keep call sites, do not write rows. */
+export async function notifyUser(_params: {
   userId: string;
   type: string;
   title: string;
   body: string;
   relatedTaskId?: string | null;
 }): Promise<void> {
+  return;
+}
+
+/** Delete every notification row (batched). */
+export async function clearAllNotifications(): Promise<number> {
   const admin = getAdminClient();
-  const { error } = await admin.from("notifications").insert({
-    user_id: params.userId,
-    type: params.type,
-    title: params.title,
-    body: params.body,
-    related_task_id: params.relatedTaskId ?? null,
-  });
-  if (error) throw error;
+  let deleted = 0;
+  for (let batch = 0; batch < 100; batch += 1) {
+    const { data, error } = await admin
+      .from("notifications")
+      .delete()
+      .neq("id", "00000000-0000-0000-0000-000000000000")
+      .select("id");
+    if (error) throw error;
+    const rows = data || [];
+    if (!rows.length) break;
+    deleted += rows.length;
+  }
+  return deleted;
 }

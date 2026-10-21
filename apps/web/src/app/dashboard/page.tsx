@@ -8,7 +8,7 @@ import { PunctualityPanel } from "@/components/punctuality-panel";
 import { Button, Card } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { cn, fullName } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const STATUS_CARDS = [
   { key: "pending", label: "Pending" },
@@ -67,15 +67,26 @@ function StatusGrid({
   );
 }
 
+const DASHBOARD_CACHE_KEY = "dashboard-summary";
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    try {
+      const cached = sessionStorage.getItem(DASHBOARD_CACHE_KEY);
+      if (cached) setSummary(JSON.parse(cached) as DashboardSummary);
+    } catch {
+      // Ignore a bad cache and load fresh numbers.
+    }
     api
       .dashboardSummary()
-      .then(setSummary)
+      .then((next) => {
+        setSummary(next);
+        sessionStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(next));
+      })
       .catch((e) => setError(e.message || "Failed to load summary"));
   }, []);
 
@@ -89,13 +100,7 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-3xl font-semibold text-ink-900">Dashboard</h1>
-          <p className="mt-1 text-sm text-ink-500">
-            Welcome back{user ? `, ${fullName(user)}` : ""}.{" "}
-            Your assigned and delegated task overview.
-          </p>
-        </div>
+        <h1 className="font-display text-3xl font-semibold text-ink-900">Dashboard</h1>
         <div className="flex gap-2">
           <Link href="/tasks/new">
             <Button>One-Time Task</Button>

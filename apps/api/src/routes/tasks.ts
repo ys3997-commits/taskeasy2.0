@@ -32,10 +32,12 @@ import {
 import { logActivity, notifyUser } from "../lib/activity";
 import { scheduleNextAfterCompletion } from "../services/recurring";
 import { scheduleDueOccurrences } from "../lib/occurrence-runner";
+import { cachedValue, invalidateCachePrefix } from "../lib/response-cache";
 import {
   canViewTask,
   dashboardSummary,
   getTaskById,
+  listOverdueTasks,
   listTasks,
 } from "../services/tasks";
 
@@ -43,10 +45,28 @@ const router = Router();
 
 router.use(requireAuth, requirePasswordChanged);
 
+function bustTaskCaches() {
+  invalidateCachePrefix("dashboard:");
+  invalidateCachePrefix("staff:details-summary");
+  invalidateCachePrefix("recurring-list:");
+}
+
+router.get("/overdue", requireRole("admin"), async (_req: AuthedRequest, res) => {
+  try {
+    const data = await listOverdueTasks();
+    res.json({ data });
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
 router.get("/dashboard/summary", async (req: AuthedRequest, res) => {
   try {
-    scheduleDueOccurrences(50);
-    const summary = await dashboardSummary(req.user!.id, req.user!.role);
+    const summary = await cachedValue(
+      `dashboard:${req.user!.id}`,
+      30_000,
+      () => dashboardSummary(req.user!.id, req.user!.role)
+    );
     res.json(summary);
   } catch (err) {
     sendError(res, err);
@@ -158,6 +178,7 @@ router.post("/", async (req: AuthedRequest, res) => {
       }
     }
 
+    bustTaskCaches();
     res.status(201).json({ data: created });
   } catch (err) {
     sendError(res, err);
@@ -289,6 +310,7 @@ router.post("/completed/clear", requireRole("admin"), async (_req, res) => {
       cancelled += rows.filter((row) => row.lifecycle === "cancelled").length;
     }
 
+    bustTaskCaches();
     res.json({ deleted: completed + cancelled, completed, cancelled });
   } catch (err) {
     sendError(res, err);
@@ -411,6 +433,7 @@ router.patch("/:id", async (req: AuthedRequest, res) => {
       });
     }
 
+    bustTaskCaches();
     res.json({ task: data });
   } catch (err) {
     sendError(res, err);
@@ -460,6 +483,7 @@ router.post("/:id/cancel", async (req: AuthedRequest, res) => {
       );
     }
 
+    bustTaskCaches();
     res.json({ task: data });
   } catch (err) {
     sendError(res, err);
@@ -507,6 +531,7 @@ router.post("/:id/complete", async (req: AuthedRequest, res) => {
           new Date(existing.deadline)
         );
       }
+      bustTaskCaches();
       res.json({ task: data });
       return;
     }
@@ -542,6 +567,7 @@ router.post("/:id/complete", async (req: AuthedRequest, res) => {
       relatedTaskId: data.id,
     });
 
+    bustTaskCaches();
     res.json({ task: data });
   } catch (err) {
     sendError(res, err);
@@ -601,6 +627,7 @@ router.post("/:id/approve", async (req: AuthedRequest, res) => {
       );
     }
 
+    bustTaskCaches();
     res.json({ task: data });
   } catch (err) {
     sendError(res, err);
@@ -654,6 +681,7 @@ router.post("/:id/reject", async (req: AuthedRequest, res) => {
       relatedTaskId: data.id,
     });
 
+    bustTaskCaches();
     res.json({ task: data });
   } catch (err) {
     sendError(res, err);
@@ -707,6 +735,7 @@ router.post("/:id/reopen", async (req: AuthedRequest, res) => {
       relatedTaskId: data.id,
     });
 
+    bustTaskCaches();
     res.json({ task: data });
   } catch (err) {
     sendError(res, err);

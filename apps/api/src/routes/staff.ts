@@ -17,6 +17,7 @@ import {
 } from "../middleware/auth";
 import { realignReceiverSchedules } from "../services/recurring";
 import { membersDetailsSummary } from "../services/tasks";
+import { cachedValue, invalidateCachePrefix } from "../lib/response-cache";
 
 const router = Router();
 
@@ -24,13 +25,16 @@ router.use(requireAuth, requirePasswordChanged);
 
 router.get("/", requireRole("admin"), async (_req, res) => {
   try {
-    const admin = getAdminClient();
-    const { data, error } = await admin
-      .from("profiles")
-      .select("*")
-      .order("last_name", { ascending: true });
-    if (error) throw error;
-    res.json({ data });
+    const payload = await cachedValue("staff:all", 30_000, async () => {
+      const admin = getAdminClient();
+      const { data, error } = await admin
+        .from("profiles")
+        .select("*")
+        .order("last_name", { ascending: true });
+      if (error) throw error;
+      return { data };
+    });
+    res.json(payload);
   } catch (err) {
     sendError(res, err);
   }
@@ -38,14 +42,17 @@ router.get("/", requireRole("admin"), async (_req, res) => {
 
 router.get("/active", requireAuth, async (_req: AuthedRequest, res) => {
   try {
-    const admin = getAdminClient();
-    const { data, error } = await admin
-      .from("profiles")
-      .select("id, first_name, last_name, username, role, is_active")
-      .eq("is_active", true)
-      .order("first_name", { ascending: true });
-    if (error) throw error;
-    res.json({ data });
+    const payload = await cachedValue("staff:active", 60_000, async () => {
+      const admin = getAdminClient();
+      const { data, error } = await admin
+        .from("profiles")
+        .select("id, first_name, last_name, username, role, is_active")
+        .eq("is_active", true)
+        .order("first_name", { ascending: true });
+      if (error) throw error;
+      return { data };
+    });
+    res.json(payload);
   } catch (err) {
     sendError(res, err);
   }
@@ -53,7 +60,9 @@ router.get("/active", requireAuth, async (_req: AuthedRequest, res) => {
 
 router.get("/details-summary", requireRole("admin"), async (_req, res) => {
   try {
-    const data = await membersDetailsSummary();
+    const data = await cachedValue("staff:details-summary", 20_000, () =>
+      membersDetailsSummary()
+    );
     res.json({ data });
   } catch (err) {
     sendError(res, err);
@@ -112,6 +121,7 @@ router.post("/", requireRole("admin"), async (req: AuthedRequest, res) => {
       throw new AppError(400, profileError.message, "profile_create_failed");
     }
 
+    invalidateCachePrefix("staff:");
     res.status(201).json({
       user: profile,
       login_instructions:
@@ -165,6 +175,7 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
       await admin.auth.admin.updateUserById(req.params.id, { ban_duration: "none" });
     }
 
+    invalidateCachePrefix("staff:");
     res.json({ user: data });
   } catch (err) {
     sendError(res, err);

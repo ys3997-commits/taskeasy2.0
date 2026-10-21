@@ -178,6 +178,54 @@ export async function listTasks(params: ListTasksParams) {
   };
 }
 
+/** Open tasks whose deadline is already past. Admin only. */
+export async function listOverdueTasks() {
+  const admin = getAdminClient();
+  const now = new Date();
+  const { data, error } = await admin
+    .from("tasks")
+    .select(
+      `id, title, deadline, lifecycle, receiver_id, delegator_id,
+       delegator:profiles!tasks_delegator_id_fkey(${PROFILE_SELECT}),
+       receiver:profiles!tasks_receiver_id_fkey(${PROFILE_SELECT})`
+    )
+    .eq("lifecycle", "active")
+    .lt("deadline", now.toISOString());
+  if (error) throw error;
+
+  const person = (
+    value:
+      | { first_name: string; last_name: string; username: string; id: string }
+      | { first_name: string; last_name: string; username: string; id: string }[]
+      | null
+  ) => (Array.isArray(value) ? value[0] : value) ?? undefined;
+
+  return (data || [])
+    .map((task) =>
+      withDisplayStatus(
+        {
+          ...task,
+          receiver: person(task.receiver),
+          delegator: person(task.delegator),
+        } as unknown as Task,
+        now
+      )
+    )
+    .sort((a, b) => {
+      const receiverA = a.receiver
+        ? `${a.receiver.first_name} ${a.receiver.last_name}`
+        : "";
+      const receiverB = b.receiver
+        ? `${b.receiver.first_name} ${b.receiver.last_name}`
+        : "";
+      const byReceiver = receiverA.localeCompare(receiverB, undefined, { sensitivity: "base" });
+      if (byReceiver !== 0) return byReceiver;
+      const byDeadline = a.deadline.localeCompare(b.deadline);
+      if (byDeadline !== 0) return byDeadline;
+      return a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
+    });
+}
+
 function emptyStatusCounts() {
   return {
     pending: 0,
@@ -262,66 +310,79 @@ function punctualityFromCompleted(
 
 export async function dashboardSummary(userId: string, _role: string) {
   const admin = getAdminClient();
-  const tasks = () =>
+  const involved = `receiver_id.eq.${userId},delegator_id.eq.${userId}`;
+  const [tasksRes, schedulesRes] = await Promise.all([
     admin
       .from("tasks")
-      .select("lifecycle, deadline, completed_at")
-      .neq("lifecycle", "cancelled");
-  const schedules = () =>
+      .select("lifecycle, deadline, completed_at, receiver_id, delegator_id, recurring_schedule_id")
+      .or(involved)
+      .neq("lifecycle", "cancelled"),
     admin
       .from("recurring_schedules")
-      .select("id, is_active, is_paused, start_date, next_occurrence_at");
+      .select(
+        "id, is_active, is_paused, start_date, next_occurrence_at, receiver_id, delegator_id"
+      )
+      .or(involved),
+  ]);
+  if (tasksRes.error) throw tasksRes.error;
+  if (schedulesRes.error) throw schedulesRes.error;
 
-  const [receivedRes, delegatedRes, receivedSchedulesRes, delegatedSchedulesRes, openRes] =
-    await Promise.all([
-      tasks().eq("receiver_id", userId),
-      tasks().eq("delegator_id", userId),
-      schedules().eq("receiver_id", userId),
-      schedules().eq("delegator_id", userId),
-      admin
-        .from("tasks")
-        .select("recurring_schedule_id")
-        .eq("lifecycle", "active")
-        .or(`receiver_id.eq.${userId},delegator_id.eq.${userId}`)
-        .not("recurring_schedule_id", "is", null),
-    ]);
-  if (receivedRes.error) throw receivedRes.error;
-  if (delegatedRes.error) throw delegatedRes.error;
-  if (receivedSchedulesRes.error) throw receivedSchedulesRes.error;
-  if (delegatedSchedulesRes.error) throw delegatedSchedulesRes.error;
-  if (openRes.error) throw openRes.error;
-
+  const tasks = tasksRes.data || [];
+  const schedules = schedulesRes.data || [];
+  const open = tasks.filter(
+    (task) => task.lifecycle === "active" || task.lifecycle === "awaiting_approval"
+  );
+  const receivedOpen = open.filter((task) => task.receiver_id === userId);
+  const delegatedOpen = open.filter((task) => task.delegator_id === userId);
+  const receivedCompleted = tasks.filter(
+    (task) => task.receiver_id === userId && task.lifecycle === "completed"
+  );
+  const delegatedCompleted = tasks.filter(
+    (task) => task.delegator_id === userId && task.lifecycle === "completed"
+  );
   const blockedScheduleIds = new Set(
-    (openRes.data || [])
-      .map((row) => row.recurring_schedule_id)
+    open
+      .map((task) => task.recurring_schedule_id)
       .filter((id): id is string => Boolean(id))
   );
-  const finished = await completedCurrentOccurrenceIds([
-    ...(receivedSchedulesRes.data || []),
-    ...(delegatedSchedulesRes.data || []),
-  ]);
-  const withFinished = (
-    rows: { id: string; is_active: boolean; is_paused: boolean; next_occurrence_at: string | null }[]
+  const receivedSchedules = schedules.filter((schedule) => schedule.receiver_id === userId);
+  const delegatedSchedules = schedules.filter((schedule) => schedule.delegator_id === userId);
+  const paused = schedules.filter((schedule) => schedule.is_active && schedule.is_paused);
+  const finished = await completedCurrentOccurrenceIds(paused);
+  const withFinished = <
+    T extends {
+      id: string;
+      is_active: boolean;
+      is_paused: boolean;
+      start_date?: string | null;
+      next_occurrence_at: string | null;
+    },
+  >(
+    rows: T[]
   ) =>
     rows.map((schedule) => ({
       ...schedule,
       current_occurrence_completed: finished.has(schedule.id),
     }));
   const now = new Date();
+  const received = countByDisplayStatus(
+    receivedOpen,
+    withFinished(receivedSchedules),
+    blockedScheduleIds,
+    now
+  );
+  const delegated = countByDisplayStatus(
+    delegatedOpen,
+    withFinished(delegatedSchedules),
+    blockedScheduleIds,
+    now
+  );
+  received.completed = receivedCompleted.length;
+  delegated.completed = delegatedCompleted.length;
   return {
-    received: countByDisplayStatus(
-      receivedRes.data || [],
-      withFinished(receivedSchedulesRes.data || []),
-      blockedScheduleIds,
-      now
-    ),
-    delegated: countByDisplayStatus(
-      delegatedRes.data || [],
-      withFinished(delegatedSchedulesRes.data || []),
-      blockedScheduleIds,
-      now
-    ),
-    punctuality: punctualityFromCompleted(receivedRes.data || []),
+    received,
+    delegated,
+    punctuality: punctualityFromCompleted(receivedCompleted),
   };
 }
 
@@ -355,7 +416,8 @@ export async function membersDetailsSummary() {
   const profiles = profilesRes.data || [];
   const tasks = tasksRes.data || [];
   const schedules = schedulesRes.data || [];
-  const finished = await completedCurrentOccurrenceIds(schedules);
+  const paused = schedules.filter((s) => s.is_active && s.is_paused);
+  const finished = await completedCurrentOccurrenceIds(paused);
   const now = new Date();
 
   const openByUser = new Map<string, Set<string>>();
