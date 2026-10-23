@@ -146,12 +146,16 @@ export function PunctualityPanel({
   audience = "self",
   memberName,
   compact = false,
+  showCounts = true,
+  showNarrative = true,
   className,
 }: {
   stats: PunctualityStats | undefined;
   audience?: Audience;
   memberName?: string;
   compact?: boolean;
+  showCounts?: boolean;
+  showNarrative?: boolean;
   className?: string;
 }) {
   if (!stats) {
@@ -185,30 +189,32 @@ export function PunctualityPanel({
           compact && "gap-3"
         )}
       >
-        <div className={cn("max-w-xl", compact && "min-w-0 flex-1")}>
-          <h2
-            className={cn(
-              "font-display font-semibold text-ink-900",
-              compact ? "text-base" : "text-xl"
-            )}
-          >
-            {copy.title}
-          </h2>
-          <p
-            className={cn(
-              "leading-relaxed text-ink-600",
-              compact ? "mt-1 text-xs" : "mt-1.5 text-sm"
-            )}
-          >
-            {copy.body}
-          </p>
-          {stats.completed > 0 ? (
-            <p className={cn("text-ink-500", compact ? "mt-1.5 text-[11px]" : "mt-2 text-xs")}>
-              Based on {stats.completed} completed assigned{" "}
-              {stats.completed === 1 ? "task" : "tasks"}.
+        {showNarrative ? (
+          <div className={cn("max-w-xl", compact && "min-w-0 flex-1")}>
+            <h2
+              className={cn(
+                "font-display font-semibold text-ink-900",
+                compact ? "text-base" : "text-xl"
+              )}
+            >
+              {copy.title}
+            </h2>
+            <p
+              className={cn(
+                "leading-relaxed text-ink-600",
+                compact ? "mt-1 text-xs" : "mt-1.5 text-sm"
+              )}
+            >
+              {copy.body}
             </p>
-          ) : null}
-        </div>
+            {showCounts && stats.completed > 0 ? (
+              <p className={cn("text-ink-500", compact ? "mt-1.5 text-[11px]" : "mt-2 text-xs")}>
+                Based on {stats.completed} completed assigned{" "}
+                {stats.completed === 1 ? "task" : "tasks"}.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         <div
           className={cn(
             "grid w-full gap-3 sm:w-auto sm:grid-cols-2",
@@ -217,7 +223,7 @@ export function PunctualityPanel({
         >
           <div
             className={cn(
-              "rounded-lg border border-brand-100 bg-white/80",
+              "rounded-lg border border-brand-100 bg-white/80 text-center",
               compact ? "px-3 py-2.5" : "px-4 py-3"
             )}
           >
@@ -232,7 +238,7 @@ export function PunctualityPanel({
             >
               {stats.completed === 0 ? "—" : `${stats.on_time_percent}%`}
             </p>
-            {stats.completed > 0 ? (
+            {showCounts && stats.completed > 0 ? (
               <p className="mt-0.5 text-xs text-ink-500">
                 {stats.on_time} of {stats.completed}
               </p>
@@ -240,7 +246,7 @@ export function PunctualityPanel({
           </div>
           <div
             className={cn(
-              "rounded-lg border border-red-100 bg-white/80",
+              "rounded-lg border border-red-100 bg-white/80 text-center",
               compact ? "px-3 py-2.5" : "px-4 py-3"
             )}
           >
@@ -255,7 +261,7 @@ export function PunctualityPanel({
             >
               {stats.completed === 0 ? "—" : `${stats.late_percent}%`}
             </p>
-            {stats.completed > 0 ? (
+            {showCounts && stats.completed > 0 ? (
               <p className="mt-0.5 text-xs text-ink-500">
                 {stats.late} of {stats.completed}
               </p>

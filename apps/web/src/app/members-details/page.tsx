@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { MemberDetailsSummary, TaskStatusCounts } from "@rajshree/shared";
 import { AppShell } from "@/components/app-shell";
+import { MembersBoxView } from "@/components/members-box-view";
 import { PunctualityPanel, sumPunctuality } from "@/components/punctuality-panel";
 import { Alert, Card, EmptyState, Input } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
@@ -41,12 +42,25 @@ function sumCounts(
   }, emptyCounts());
 }
 
+function boxHref(
+  side: "assigned" | "delegated",
+  status: string,
+  member?: MemberDetailsSummary
+) {
+  const qs = new URLSearchParams({ side, status });
+  if (member) {
+    qs.set("member", member.id);
+    qs.set("name", fullName(member));
+  }
+  return `/members-details?${qs.toString()}`;
+}
+
 function StatusGrid({
-  hrefBase,
+  hrefFor,
   counts,
   cards,
 }: {
-  hrefBase: string;
+  hrefFor: (status: string) => string;
   counts: TaskStatusCounts;
   cards: readonly { key: keyof TaskStatusCounts; label: string }[];
 }) {
@@ -56,8 +70,8 @@ function StatusGrid({
         const value = counts[card.key];
         const overdue = card.key === "overdue";
         return (
-          <Link key={card.key} href={`${hrefBase}?status=${card.key}`}>
-            <Card className="h-full px-3 py-3.5 transition hover:border-brand-500">
+          <Link key={card.key} href={hrefFor(card.key)}>
+            <Card className="h-full px-3 py-3.5 text-center transition hover:border-brand-500">
               <p
                 className={cn(
                   "truncate text-xs font-medium sm:text-sm",
@@ -83,14 +97,12 @@ function StatusGrid({
 }
 
 function TaskSides({
-  assignedHref,
+  member,
   assignedCounts,
-  delegatedHref,
   delegatedCounts,
 }: {
-  assignedHref: string;
+  member?: MemberDetailsSummary;
   assignedCounts: TaskStatusCounts;
-  delegatedHref: string;
   delegatedCounts: TaskStatusCounts;
 }) {
   return (
@@ -100,7 +112,7 @@ function TaskSides({
           Assigned Tasks
         </h3>
         <StatusGrid
-          hrefBase={assignedHref}
+          hrefFor={(status) => boxHref("assigned", status, member)}
           counts={assignedCounts}
           cards={ASSIGNED_CARDS}
         />
@@ -110,7 +122,7 @@ function TaskSides({
           Delegated Tasks
         </h3>
         <StatusGrid
-          hrefBase={delegatedHref}
+          hrefFor={(status) => boxHref("delegated", status, member)}
           counts={delegatedCounts}
           cards={DELEGATED_CARDS}
         />
@@ -119,9 +131,17 @@ function TaskSides({
   );
 }
 
-export default function MembersDetailsPage() {
+function MembersDetailsPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const side = searchParams.get("side");
+  const status = searchParams.get("status");
+  const memberId = searchParams.get("member") || undefined;
+  const memberName = searchParams.get("name") || undefined;
+  const boxOpen =
+    (side === "assigned" || side === "delegated") &&
+    (status === "pending" || status === "overdue" || status === "sent_for_approval");
   const [members, setMembers] = useState<MemberDetailsSummary[]>([]);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
@@ -132,7 +152,7 @@ export default function MembersDetailsPage() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    if (user?.role !== "admin") return;
+    if (boxOpen || user?.role !== "admin" || members.length > 0) return;
     setLoadingRows(true);
     api
       .membersDetailsSummary()
@@ -151,7 +171,7 @@ export default function MembersDetailsPage() {
         setError(err instanceof ApiError ? err.message : "Failed to load members")
       )
       .finally(() => setLoadingRows(false));
-  }, [user]);
+  }, [user, boxOpen, members.length]);
 
   const companyAssigned = useMemo(() => sumCounts(members, "received"), [members]);
   const companyDelegated = useMemo(() => sumCounts(members, "delegated"), [members]);
@@ -174,6 +194,23 @@ export default function MembersDetailsPage() {
   }, [members, query]);
 
   if (!user || user.role !== "admin") return null;
+
+  if (
+    boxOpen &&
+    (side === "assigned" || side === "delegated") &&
+    (status === "pending" || status === "overdue" || status === "sent_for_approval")
+  ) {
+    return (
+      <AppShell>
+        <MembersBoxView
+          side={side}
+          status={status}
+          memberId={memberId}
+          memberName={memberName}
+        />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -206,21 +243,18 @@ export default function MembersDetailsPage() {
               <h2 className="font-display text-2xl font-semibold text-brand-800">
                 Rajshree Energy
               </h2>
-              <p className="mt-1 text-sm text-ink-500">
-                Company-wide pending, overdue, approval, and on-time totals.
-              </p>
             </div>
 
             <PunctualityPanel
               stats={companyPunctuality}
               audience="company"
+              showNarrative={false}
+              showCounts={false}
               className="mb-5"
             />
 
             <TaskSides
-              assignedHref="/members-details/company/assigned"
               assignedCounts={companyAssigned}
-              delegatedHref="/members-details/company/delegated"
               delegatedCounts={companyDelegated}
             />
           </section>
@@ -260,7 +294,6 @@ export default function MembersDetailsPage() {
                       Inactive
                     </span>
                   ) : null}
-                  <span className="text-xs text-ink-500">@{member.username}</span>
                 </div>
 
                 <PunctualityPanel
@@ -272,9 +305,8 @@ export default function MembersDetailsPage() {
                 />
 
                 <TaskSides
-                  assignedHref={`/members-details/${member.id}/assigned`}
+                  member={member}
                   assignedCounts={member.received}
-                  delegatedHref={`/members-details/${member.id}/delegated`}
                   delegatedCounts={member.delegated}
                 />
               </section>
@@ -283,5 +315,19 @@ export default function MembersDetailsPage() {
         </div>
       )}
     </AppShell>
+  );
+}
+
+export default function MembersDetailsRoute() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-ink-50 text-sm text-ink-500">
+          Loading…
+        </div>
+      }
+    >
+      <MembersDetailsPage />
+    </Suspense>
   );
 }

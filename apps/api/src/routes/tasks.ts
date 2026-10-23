@@ -48,6 +48,7 @@ router.use(requireAuth, requirePasswordChanged);
 function bustTaskCaches() {
   invalidateCachePrefix("dashboard:");
   invalidateCachePrefix("staff:details-summary");
+  invalidateCachePrefix("staff:box-tasks:");
   invalidateCachePrefix("recurring-list:");
 }
 

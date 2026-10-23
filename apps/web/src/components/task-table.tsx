@@ -30,6 +30,7 @@ export function TaskTable({
   onApprove,
   onRetask,
   actingId,
+  showBothPeople = false,
 }: {
   tasks: Task[];
   schedules?: RecurringSchedule[];
@@ -42,12 +43,13 @@ export function TaskTable({
   onApprove?: (task: Task) => void;
   onRetask?: (task: Task) => void;
   actingId?: string | null;
+  showBothPeople?: boolean;
 }) {
   const assigned = variant === "assigned";
   const delegated = variant === "delegated";
   const approvals = variant === "approvals";
-  const showReceiver = !assigned;
-  const showDelegator = !delegated;
+  const showReceiver = showBothPeople || !assigned;
+  const showDelegator = showBothPeople || !delegated;
   const showRange = assigned || delegated;
   const dateOnly = assigned || delegated;
   const sortable = assigned || delegated || approvals;

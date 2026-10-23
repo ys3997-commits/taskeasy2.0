@@ -321,6 +321,19 @@ export const api = {
   membersDetailsSummary() {
     return request<{ data: MemberDetailsSummary[] }>("/staff/details-summary");
   },
+  boxTasks(params: {
+    side: "assigned" | "delegated";
+    status: "pending" | "overdue" | "sent_for_approval";
+    member_id?: string;
+  }) {
+    const qs = new URLSearchParams({ side: params.side, status: params.status });
+    if (params.member_id) qs.set("member_id", params.member_id);
+    return request<{
+      tasks: Task[];
+      schedules: RecurringSchedule[];
+      member: { id: string; first_name: string; last_name: string } | null;
+    }>(`/staff/box-tasks?${qs.toString()}`);
+  },
   createStaff(body: unknown) {
     return request<{
       user: Profile;

@@ -32,6 +32,7 @@ function bustListCaches() {
   invalidateCachePrefix("recurring-list:");
   invalidateCachePrefix("dashboard:");
   invalidateCachePrefix("staff:details-summary");
+  invalidateCachePrefix("staff:box-tasks:");
 }
 
 const router = Router();

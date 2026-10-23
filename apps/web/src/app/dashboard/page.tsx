@@ -42,12 +42,12 @@ function StatusGrid({
   cards: { key: string; label: string; value: number | string; href: string }[];
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {cards.map((card) => {
         const overdue = card.key === "overdue";
         return (
           <Link key={card.key} href={card.href}>
-            <Card className="transition hover:border-brand-500">
+            <Card className="text-center transition hover:border-brand-500">
               <p className={cn("text-sm", overdue ? "text-red-700" : "text-ink-500")}>
                 {card.label}
               </p>
@@ -90,12 +90,14 @@ export default function DashboardPage() {
       .catch((e) => setError(e.message || "Failed to load summary"));
   }, []);
 
-  const receivedCards = statusCards(summary?.received, "/tasks/received");
+  const receivedCards = statusCards(summary?.received, "/tasks/received").filter(
+    (card) => card.key !== "completed"
+  );
   const delegatedCards = statusCards(
     summary?.delegated,
     "/tasks/delegated",
     DELEGATED_STATUS_CARDS
-  );
+  ).filter((card) => card.key !== "completed");
 
   return (
     <AppShell>
@@ -115,7 +117,7 @@ export default function DashboardPage() {
 
       {error ? <p className="mb-4 text-sm text-red-700">{error}</p> : null}
 
-      <PunctualityPanel stats={summary?.punctuality} className="mb-8" />
+      <PunctualityPanel stats={summary?.punctuality} showCounts={false} className="mb-8" />
 
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-medium text-ink-700">Assigned Task</h2>

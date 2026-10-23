@@ -6,6 +6,7 @@ import {
   nextUniqueUsername,
   updateStaffSchema,
 } from "@rajshree/shared";
+import { z } from "zod";
 import { getAdminClient } from "../lib/supabase";
 import { AppError, sendError } from "../lib/errors";
 import { generateTemporaryPassword } from "../lib/password";
@@ -16,7 +17,7 @@ import {
   requireRole,
 } from "../middleware/auth";
 import { realignReceiverSchedules } from "../services/recurring";
-import { membersDetailsSummary } from "../services/tasks";
+import { listBoxTasks, membersDetailsSummary } from "../services/tasks";
 import { cachedValue, invalidateCachePrefix } from "../lib/response-cache";
 
 const router = Router();
@@ -64,6 +65,34 @@ router.get("/details-summary", requireRole("admin"), async (_req, res) => {
       membersDetailsSummary()
     );
     res.json({ data });
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+const boxTasksQuerySchema = z.object({
+  side: z.enum(["assigned", "delegated"]),
+  status: z.enum(["pending", "overdue", "sent_for_approval"]),
+  member_id: z.string().uuid().optional(),
+});
+
+router.get("/box-tasks", requireRole("admin"), async (req, res) => {
+  try {
+    const query = boxTasksQuerySchema.parse(req.query);
+    const data = await cachedValue(
+      `staff:box-tasks:${query.side}:${query.status}:${query.member_id || "all"}`,
+      15_000,
+      () =>
+        listBoxTasks({
+          side: query.side,
+          status: query.status,
+          memberId: query.member_id,
+        })
+    );
+    if (query.member_id && !data.member) {
+      throw new AppError(404, "Member not found", "not_found");
+    }
+    res.json(data);
   } catch (err) {
     sendError(res, err);
   }
@@ -226,11 +255,13 @@ router.post("/:id/reset-password", requireRole("admin"), async (req: AuthedReque
 
 router.get("/:id/tasks", requireRole("admin"), async (req, res) => {
   try {
+    const id = z.string().uuid().safeParse(req.params.id);
+    if (!id.success) throw new AppError(400, "Invalid member", "validation_error");
     const admin = getAdminClient();
     const { data, error } = await admin
       .from("tasks")
       .select("*")
-      .or(`receiver_id.eq.${req.params.id},delegator_id.eq.${req.params.id}`)
+      .or(`receiver_id.eq.${id.data},delegator_id.eq.${id.data}`)
       .or("lifecycle.neq.completed,cancelled_at.is.null")
       .order("deadline", { ascending: true });
     if (error) throw error;

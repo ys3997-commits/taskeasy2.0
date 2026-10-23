@@ -5,7 +5,7 @@ import {
   matchesDisplayStatusFilter,
   recurringScheduleDisplayStatus,
 } from "@rajshree/shared";
-import type { DisplayStatus, Task } from "@rajshree/shared";
+import type { DisplayStatus, RecurringSchedule, Task } from "@rajshree/shared";
 import { getAdminClient } from "../lib/supabase";
 import { completedCurrentOccurrenceIds } from "./recurring";
 
@@ -267,23 +267,39 @@ function countByDisplayStatus(
   for (const row of rows) {
     addStatus(summary, computeDisplayStatus(row.lifecycle, row.deadline, now));
   }
-  const today = istDateString(now);
   for (const schedule of schedules) {
-    if (schedule.id && blockedScheduleIds.has(schedule.id)) continue;
-    if (schedule.is_active && !schedule.is_paused) {
-      const opens = schedule.start_date
-        ? String(schedule.start_date).slice(0, 10)
-        : schedule.next_occurrence_at
-          ? istDateString(new Date(schedule.next_occurrence_at))
-          : "";
-      if (!opens || opens > today) continue;
-    }
-    if (schedule.is_active && schedule.is_paused && schedule.current_occurrence_completed) {
-      continue;
-    }
-    addStatus(summary, recurringScheduleDisplayStatus(schedule, now));
+    const status = countedScheduleStatus(schedule, blockedScheduleIds, now);
+    if (status) addStatus(summary, status);
   }
   return summary;
+}
+
+/** Same inclusion rules as the Members Details box counts. Null means not counted. */
+function countedScheduleStatus(
+  schedule: {
+    id?: string;
+    is_active: boolean;
+    is_paused: boolean;
+    start_date?: string | null;
+    next_occurrence_at: string | null;
+    current_occurrence_completed?: boolean;
+  },
+  blockedScheduleIds: Set<string>,
+  now: Date
+): DisplayStatus | null {
+  if (schedule.id && blockedScheduleIds.has(schedule.id)) return null;
+  if (schedule.is_active && !schedule.is_paused) {
+    const opens = schedule.start_date
+      ? String(schedule.start_date).slice(0, 10)
+      : schedule.next_occurrence_at
+        ? istDateString(new Date(schedule.next_occurrence_at))
+        : "";
+    if (!opens || opens > istDateString(now)) return null;
+  }
+  if (schedule.is_active && schedule.is_paused && schedule.current_occurrence_completed) {
+    return null;
+  }
+  return recurringScheduleDisplayStatus(schedule, now);
 }
 
 function punctualityFromCounts(onTime: number, late: number) {
@@ -567,4 +583,153 @@ export async function membersDetailsSummary() {
       ),
     };
   });
+}
+
+function boxStatusMatches(
+  display: DisplayStatus | undefined,
+  status: "pending" | "overdue" | "sent_for_approval"
+) {
+  if (!display) return false;
+  // Overdue rows are included in the Pending box total.
+  if (status === "pending") return display === "pending" || display === "overdue";
+  return display === status;
+}
+
+function personName(person?: { first_name?: string; last_name?: string } | null) {
+  return `${person?.first_name || ""} ${person?.last_name || ""}`.trim();
+}
+
+function oneProfile<T>(value: T | T[] | null | undefined): T | null {
+  if (!value) return null;
+  return Array.isArray(value) ? value[0] || null : value;
+}
+
+/** Tasks and schedules that make up one Members Details status box. */
+export async function listBoxTasks(params: {
+  side: "assigned" | "delegated";
+  status: "pending" | "overdue" | "sent_for_approval";
+  memberId?: string;
+}) {
+  const admin = getAdminClient();
+  const now = new Date();
+  const personColumn = params.side === "assigned" ? "receiver_id" : "delegator_id";
+
+  let taskQuery = admin
+    .from("tasks")
+    .select(
+      `*, delegator:profiles!tasks_delegator_id_fkey(${PROFILE_SELECT}), receiver:profiles!tasks_receiver_id_fkey(${PROFILE_SELECT}), recurring_schedules(frequency, start_date), task_occurrences(occurrence_date)`
+    )
+    .in("lifecycle", ["active", "awaiting_approval"]);
+  if (params.memberId) taskQuery = taskQuery.eq(personColumn, params.memberId);
+
+  let scheduleQuery = admin
+    .from("recurring_schedules")
+    .select(
+      `id, title, frequency, interval, start_date, end_date, is_active, is_paused, next_occurrence_at, delegator_id, receiver_id, created_at,
+       delegator:profiles!recurring_schedules_delegator_id_fkey(${PROFILE_SELECT}),
+       receiver:profiles!recurring_schedules_receiver_id_fkey(${PROFILE_SELECT})`
+    )
+    .eq("is_active", true);
+  if (params.memberId) scheduleQuery = scheduleQuery.eq(personColumn, params.memberId);
+
+  let openQuery = admin
+    .from("tasks")
+    .select("recurring_schedule_id, receiver_id, delegator_id")
+    .eq("lifecycle", "active")
+    .not("recurring_schedule_id", "is", null);
+  if (params.memberId) {
+    openQuery = openQuery.or(
+      `receiver_id.eq.${params.memberId},delegator_id.eq.${params.memberId}`
+    );
+  }
+
+  const profilePromise = params.memberId
+    ? admin
+        .from("profiles")
+        .select("id, first_name, last_name")
+        .eq("id", params.memberId)
+        .maybeSingle()
+    : Promise.resolve({ data: null, error: null });
+
+  const [tasksRes, schedulesRes, openRes, profileRes] = await Promise.all([
+    taskQuery,
+    scheduleQuery,
+    openQuery,
+    profilePromise,
+  ]);
+  if (tasksRes.error) throw tasksRes.error;
+  if (schedulesRes.error) throw schedulesRes.error;
+  if (openRes.error) throw openRes.error;
+  if (profileRes.error) throw profileRes.error;
+
+  const openByUser = new Map<string, Set<string>>();
+  for (const row of openRes.data || []) {
+    const scheduleId = row.recurring_schedule_id;
+    if (!scheduleId) continue;
+    for (const userId of [row.receiver_id, row.delegator_id]) {
+      if (!userId) continue;
+      let set = openByUser.get(userId);
+      if (!set) {
+        set = new Set();
+        openByUser.set(userId, set);
+      }
+      set.add(scheduleId);
+    }
+  }
+
+  const scheduleRows = (schedulesRes.data || []) as unknown as RecurringSchedule[];
+  const paused = scheduleRows.filter((schedule) => schedule.is_active && schedule.is_paused);
+  const finished = await completedCurrentOccurrenceIds(paused);
+  const schedules: RecurringSchedule[] =
+    params.status === "sent_for_approval"
+      ? []
+      : scheduleRows
+          .map((schedule) => ({
+            ...schedule,
+            receiver: oneProfile(schedule.receiver),
+            delegator: oneProfile(schedule.delegator),
+            description: schedule.description || "",
+            approval_required: schedule.approval_required ?? false,
+            byweekday: schedule.byweekday ?? null,
+            bymonthday: schedule.bymonthday ?? null,
+            time_of_day: schedule.time_of_day || "",
+            updated_at: schedule.updated_at || schedule.created_at,
+            current_occurrence_completed: finished.has(schedule.id),
+          }))
+          .filter((schedule) => {
+            const ownerId = schedule[personColumn];
+            const blocked = (ownerId && openByUser.get(ownerId)) || new Set<string>();
+            const status = countedScheduleStatus(schedule, blocked, now);
+            return status ? boxStatusMatches(status, params.status) : false;
+          })
+          .sort((a, b) => {
+            const personA = params.side === "assigned" ? a.receiver : a.delegator;
+            const personB = params.side === "assigned" ? b.receiver : b.delegator;
+            const byName = personName(personA).localeCompare(personName(personB), undefined, {
+              sensitivity: "base",
+            });
+            if (byName !== 0) return byName;
+            return String(a.next_occurrence_at || "").localeCompare(
+              String(b.next_occurrence_at || "")
+            );
+          });
+
+  const tasks = (tasksRes.data || [])
+    .map((task) => withDisplayStatus(task as Task, now))
+    .filter((task) => boxStatusMatches(task.display_status, params.status))
+    .sort((a, b) => {
+      const personA = params.side === "assigned" ? a.receiver : a.delegator;
+      const personB = params.side === "assigned" ? b.receiver : b.delegator;
+      const byName = personName(personA).localeCompare(personName(personB), undefined, {
+        sensitivity: "base",
+      });
+      if (byName !== 0) return byName;
+      return a.deadline.localeCompare(b.deadline);
+    });
+
+  return {
+    tasks,
+    schedules,
+    member: profileRes.data,
+  };
 }
