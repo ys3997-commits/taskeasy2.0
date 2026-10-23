@@ -34,9 +34,9 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,#e7efe9,transparent_45%),linear-gradient(180deg,#f8faf9,#eef2f0)] px-4">
-      <div className="w-full max-w-md rounded-xl border border-ink-200 bg-white p-8 shadow-sm">
+      <div className="w-full max-w-md rounded-xl border border-ink-200 bg-white p-5 shadow-sm sm:p-8">
         <div className="mb-8 text-center">
-          <p className="font-display text-3xl font-semibold text-brand-700">
+          <p className="font-display text-2xl font-semibold text-brand-700 sm:text-3xl">
             Rajshree Energy
           </p>
           <p className="mt-2 text-sm text-ink-500">

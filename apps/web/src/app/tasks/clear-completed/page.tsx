@@ -133,7 +133,7 @@ export default function ClearCompletedPage() {
           })}
         </div>
 
-        <Card className="space-y-4 p-6">
+        <Card className="space-y-4 p-4 sm:p-6">
           <p className="text-sm text-ink-700">
             Completed and cancelled tasks are removed for the whole company. A task that is
             finished but still waiting for approval stays until the approver decides.

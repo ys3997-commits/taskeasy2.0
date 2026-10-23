@@ -215,9 +215,10 @@ export default function RecurringListPage() {
         <h1 className="font-display text-3xl font-semibold text-ink-900">
           Recurring Tasks
         </h1>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
           <Button
             variant="secondary"
+            className="w-full sm:w-auto"
             disabled={!schedules.length || exporting !== null}
             onClick={() => void downloadAll("excel")}
           >
@@ -225,6 +226,7 @@ export default function RecurringListPage() {
           </Button>
           <Button
             variant="secondary"
+            className="w-full sm:w-auto"
             disabled={!schedules.length || exporting !== null}
             onClick={() => void downloadAll("pdf")}
           >
@@ -232,11 +234,12 @@ export default function RecurringListPage() {
           </Button>
           {isAdmin ? (
             <>
-            <Link href="/recurring/new">
-              <Button>Create Recurring Task</Button>
+            <Link href="/recurring/new" className="block sm:w-auto">
+              <Button className="w-full sm:w-auto">Create Recurring Task</Button>
             </Link>
             <Button
               variant="danger"
+              className="w-full sm:w-auto"
               disabled={!cancelledCount || clearingCancelled}
               onClick={async () => {
                 if (
@@ -300,7 +303,7 @@ export default function RecurringListPage() {
           </div>
 
           {frequencySummary.items.length ? (
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-8">
+            <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8">
               {frequencySummary.items.map((item) => (
                 <div
                   key={item.key}
@@ -332,7 +335,145 @@ export default function RecurringListPage() {
           description="No recurring tasks for the selected receiver."
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-ink-200 bg-white">
+        <>
+        <div className="mb-3 md:hidden">
+          <label htmlFor="recurring-mobile-sort" className="mb-1 block text-xs font-medium text-ink-500">
+            Sort
+          </label>
+          <Select
+            id="recurring-mobile-sort"
+            value={`${sortKey}:${sortDir}`}
+            onChange={(event) => {
+              const [key, dir] = event.target.value.split(":") as [SortKey, SortDir];
+              setSortKey(key);
+              setSortDir(dir);
+            }}
+          >
+            {(
+              [
+                ["title", "Tasks"],
+                ["delegator", "Delegator"],
+                ["receiver", "Receiver"],
+                ["start", "Start Date"],
+                ["end", "End Date"],
+                ["frequency", "Frequency"],
+                ["status", "Status"],
+              ] as const
+            ).map(([key, label]) => (
+              <option key={`${key}:asc`} value={`${key}:asc`}>
+                {key === "start" || key === "end"
+                  ? `${label}, earliest first`
+                  : `${label}, A to Z`}
+              </option>
+            ))}
+            {(
+              [
+                ["title", "Tasks"],
+                ["delegator", "Delegator"],
+                ["receiver", "Receiver"],
+                ["start", "Start Date"],
+                ["end", "End Date"],
+                ["frequency", "Frequency"],
+                ["status", "Status"],
+              ] as const
+            ).map(([key, label]) => (
+              <option key={`${key}:desc`} value={`${key}:desc`}>
+                {key === "start" || key === "end"
+                  ? `${label}, latest first`
+                  : `${label}, Z to A`}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="space-y-3 md:hidden">
+          {sortedSchedules.map((s) => (
+            <article key={s.id} className="rounded-lg border border-ink-200 bg-white p-4 shadow-sm">
+              <h2 className="break-words text-base font-medium text-ink-900">{s.title}</h2>
+              <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                <div>
+                  <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-500">Delegator</dt>
+                  <dd className="mt-0.5 break-words text-ink-800">{s.delegator ? fullName(s.delegator) : "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-500">Receiver</dt>
+                  <dd className="mt-0.5 break-words text-ink-800">{s.receiver ? fullName(s.receiver) : "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-500">Start Date</dt>
+                  <dd className="mt-0.5 text-ink-800">{formatDate(s.start_date)}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-500">End Date</dt>
+                  <dd className="mt-0.5 text-ink-800">{formatDate(s.end_date)}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-500">Frequency</dt>
+                  <dd className="mt-0.5 text-ink-800">{frequencyText(s)}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-500">Status</dt>
+                  <dd className="mt-0.5 text-ink-800">{scheduleStatus(s)}</dd>
+                </div>
+              </dl>
+              {isAdmin && s.is_active ? (
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <Link href={`/recurring/${s.id}/edit`} className="col-span-2">
+                    <Button variant="secondary" className="w-full">
+                      Edit
+                    </Button>
+                  </Link>
+                  {s.is_paused ? (
+                    <Button
+                      variant="secondary"
+                      className="w-full"
+                      onClick={async () => {
+                        try {
+                          await api.resumeRecurring(s.id);
+                          await load();
+                        } catch (err) {
+                          setError(err instanceof Error ? err.message : "Failed to resume");
+                        }
+                      }}
+                    >
+                      Resume
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      className="w-full"
+                      onClick={async () => {
+                        try {
+                          await api.pauseRecurring(s.id);
+                          await load();
+                        } catch (err) {
+                          setError(err instanceof Error ? err.message : "Failed to pause");
+                        }
+                      }}
+                    >
+                      Pause
+                    </Button>
+                  )}
+                  <Button
+                    variant="danger"
+                    className="w-full"
+                    onClick={async () => {
+                      if (!confirm("Cancel this recurring schedule?")) return;
+                      try {
+                        await api.cancelRecurring(s.id);
+                        await load();
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : "Failed to cancel");
+                      }
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : null}
+            </article>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto rounded-lg border border-ink-200 bg-white md:block">
           <table className="min-w-full text-left text-sm">
             <thead className="bg-ink-50 text-ink-500">
               <tr>
@@ -409,7 +550,7 @@ export default function RecurringListPage() {
                   {isAdmin ? (
                     <td className="px-4 py-3">
                       {s.is_active ? (
-                        <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
                           <Link href={`/recurring/${s.id}/edit`} className="inline-flex">
                             <Button variant="secondary" className="px-3 py-1.5">
                               Edit
@@ -472,6 +613,7 @@ export default function RecurringListPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </AppShell>
   );

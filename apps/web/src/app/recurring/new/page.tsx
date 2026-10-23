@@ -112,7 +112,7 @@ export default function NewRecurringPage() {
       </h1>
       <form
         onSubmit={onSubmit}
-        className="mt-6 max-w-2xl space-y-4 rounded-lg border border-ink-200 bg-white p-5"
+        className="mt-6 w-full max-w-2xl space-y-4 rounded-lg border border-ink-200 bg-white p-4 sm:p-5"
       >
         {error ? <Alert>{error}</Alert> : null}
         <div>
@@ -218,11 +218,11 @@ export default function NewRecurringPage() {
             ) : null}
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button type="submit" disabled={saving}>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button type="submit" className="w-full sm:w-auto" disabled={saving}>
             {saving ? "Creating…" : "Create schedule"}
           </Button>
-          <Button type="button" variant="secondary" onClick={() => router.back()}>
+          <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={() => router.back()}>
             Cancel
           </Button>
         </div>

@@ -20,7 +20,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center rounded-md px-3.5 py-2 text-sm font-medium transition disabled:opacity-50",
+        "inline-flex min-h-11 items-center justify-center rounded-md px-3.5 py-2 text-sm font-medium transition disabled:opacity-50 sm:min-h-10",
         variants[variant],
         className
       )}
@@ -36,7 +36,7 @@ export function Input({
   return (
     <input
       className={cn(
-        "w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100",
+        "w-full min-w-0 max-w-full rounded-md border border-ink-200 bg-white px-3 py-2.5 text-base text-ink-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 sm:py-2 sm:text-sm",
         className
       )}
       {...props}
@@ -51,7 +51,7 @@ export function Textarea({
   return (
     <textarea
       className={cn(
-        "w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100",
+        "w-full min-w-0 max-w-full rounded-md border border-ink-200 bg-white px-3 py-2.5 text-base text-ink-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 sm:py-2 sm:text-sm",
         className
       )}
       {...props}
@@ -67,7 +67,7 @@ export function Select({
   return (
     <select
       className={cn(
-        "w-full rounded-md border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100",
+        "w-full min-w-0 max-w-full rounded-md border border-ink-200 bg-white px-3 py-2.5 text-base text-ink-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 sm:py-2 sm:text-sm",
         className
       )}
       {...props}

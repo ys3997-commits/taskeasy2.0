@@ -101,15 +101,15 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <h1 className="font-display text-3xl font-semibold text-ink-900">Dashboard</h1>
-        <div className="flex gap-2">
-          <Link href="/tasks/new">
-            <Button>One-Time Task</Button>
+        <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex">
+          <Link href="/tasks/new" className="block">
+            <Button className="w-full sm:w-auto">One-Time Task</Button>
           </Link>
           {user?.role === "admin" ? (
-            <Link href="/recurring/new">
-              <Button>Recurring Task</Button>
+            <Link href="/recurring/new" className="block">
+              <Button className="w-full sm:w-auto">Recurring Task</Button>
             </Link>
           ) : null}
         </div>
@@ -117,7 +117,12 @@ export default function DashboardPage() {
 
       {error ? <p className="mb-4 text-sm text-red-700">{error}</p> : null}
 
-      <PunctualityPanel stats={summary?.punctuality} showCounts={false} className="mb-8" />
+      <PunctualityPanel
+        stats={summary?.punctuality}
+        showCounts={false}
+        splitBar
+        className="mb-8"
+      />
 
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-medium text-ink-700">Assigned Task</h2>

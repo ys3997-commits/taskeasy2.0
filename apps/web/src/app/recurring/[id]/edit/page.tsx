@@ -177,7 +177,7 @@ export default function EditRecurringPage() {
       </h1>
       <form
         onSubmit={onSubmit}
-        className="mt-6 max-w-2xl space-y-4 rounded-lg border border-ink-200 bg-white p-5"
+        className="mt-6 w-full max-w-2xl space-y-4 rounded-lg border border-ink-200 bg-white p-4 sm:p-5"
       >
         {error ? <Alert>{error}</Alert> : null}
         <div>
@@ -296,11 +296,11 @@ export default function EditRecurringPage() {
             Weekly from 20/10 to 22/10 comes back from 27/10 to 29/10.
           </p>
         ) : null}
-        <div className="flex gap-2">
-          <Button type="submit" disabled={saving || !ready}>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button type="submit" className="w-full sm:w-auto" disabled={saving || !ready}>
             {saving ? "Saving…" : "Save changes"}
           </Button>
-          <Button type="button" variant="secondary" onClick={() => router.push("/recurring")}>
+          <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={() => router.push("/recurring")}>
             Cancel
           </Button>
         </div>

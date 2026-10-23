@@ -35,7 +35,7 @@ export function TaskFilters({
     onChange({ ...value, [key]: v });
 
   return (
-    <div className="grid gap-3 rounded-lg border border-ink-200 bg-white p-3 md:grid-cols-3 lg:grid-cols-4">
+    <div className="grid min-w-0 gap-3 rounded-lg border border-ink-200 bg-white p-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
       <Select value={value.status} onChange={(e) => set("status", e.target.value)}>
         <option value="all">All statuses</option>
         <option value="pending">Pending</option>

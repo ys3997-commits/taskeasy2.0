@@ -6,7 +6,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { MemberDetailsSummary, TaskStatusCounts } from "@rajshree/shared";
 import { AppShell } from "@/components/app-shell";
 import { MembersBoxView } from "@/components/members-box-view";
-import { PunctualityPanel, sumPunctuality } from "@/components/punctuality-panel";
+import {
+  PunctualityBar,
+  PunctualityBoxes,
+  PunctualityPanel,
+  sumPunctuality,
+} from "@/components/punctuality-panel";
 import { Alert, Card, EmptyState, Input } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -65,16 +70,16 @@ function StatusGrid({
   cards: readonly { key: keyof TaskStatusCounts; label: string }[];
 }) {
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
       {cards.map((card) => {
         const value = counts[card.key];
         const overdue = card.key === "overdue";
         return (
           <Link key={card.key} href={hrefFor(card.key)}>
-            <Card className="h-full px-3 py-3.5 text-center transition hover:border-brand-500">
+            <Card className="flex h-full items-center justify-between gap-3 px-3 py-3 text-left transition hover:border-brand-500 sm:block sm:px-3 sm:py-3.5 sm:text-center">
               <p
                 className={cn(
-                  "truncate text-xs font-medium sm:text-sm",
+                  "text-sm font-medium leading-snug",
                   overdue ? "text-red-700" : "text-ink-500"
                 )}
               >
@@ -82,7 +87,7 @@ function StatusGrid({
               </p>
               <p
                 className={cn(
-                  "mt-1.5 font-display text-2xl font-semibold tabular-nums sm:text-3xl",
+                  "font-display text-2xl font-semibold tabular-nums sm:mt-1.5 sm:text-3xl",
                   overdue ? "text-red-700" : "text-ink-900"
                 )}
               >
@@ -218,7 +223,7 @@ function MembersDetailsPage() {
         <h1 className="font-display text-3xl font-semibold text-ink-900">
           Members Details
         </h1>
-        <div className="w-full max-w-xs">
+        <div className="w-full sm:max-w-xs">
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -238,9 +243,9 @@ function MembersDetailsPage() {
         <p className="text-sm text-ink-500">Loading members…</p>
       ) : (
         <div className="space-y-8">
-          <section className="rounded-xl border border-brand-200 bg-gradient-to-b from-white to-brand-50/40 p-5 shadow-sm">
+          <section className="rounded-xl border border-brand-200 bg-gradient-to-b from-white to-brand-50/40 p-4 shadow-sm sm:p-5">
             <div className="mb-5">
-              <h2 className="font-display text-2xl font-semibold text-brand-800">
+              <h2 className="break-words font-display text-xl font-semibold text-brand-800 sm:text-2xl">
                 Rajshree Energy
               </h2>
             </div>
@@ -250,6 +255,7 @@ function MembersDetailsPage() {
               audience="company"
               showNarrative={false}
               showCounts={false}
+              splitBar
               className="mb-5"
             />
 
@@ -273,36 +279,33 @@ function MembersDetailsPage() {
               <section
                 id={member.id}
                 key={member.id}
-                className="scroll-mt-24 rounded-xl border border-ink-200 bg-white/80 p-5 shadow-sm"
+                className="scroll-mt-24 rounded-xl border border-ink-200 bg-white/80 p-4 shadow-sm sm:p-5"
               >
-                <div className="mb-4 flex flex-wrap items-center gap-2">
-                  <h2 className="font-display text-2xl font-semibold text-ink-900">
-                    {fullName(member)}
-                  </h2>
-                  <span
-                    className={cn(
-                      "rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
-                      member.role === "admin"
-                        ? "bg-brand-50 text-brand-800 ring-brand-200"
-                        : "bg-ink-50 text-ink-700 ring-ink-200"
-                    )}
-                  >
-                    {member.role === "admin" ? "Admin" : "Team"}
-                  </span>
-                  {!member.is_active ? (
-                    <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900 ring-1 ring-inset ring-amber-200">
-                      Inactive
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="break-words font-display text-xl font-semibold text-ink-900 sm:text-2xl">
+                      {fullName(member)}
+                    </h2>
+                    <span
+                      className={cn(
+                        "rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
+                        member.role === "admin"
+                          ? "bg-brand-50 text-brand-800 ring-brand-200"
+                          : "bg-ink-50 text-ink-700 ring-ink-200"
+                      )}
+                    >
+                      {member.role === "admin" ? "Admin" : "Team"}
                     </span>
-                  ) : null}
+                    {!member.is_active ? (
+                      <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900 ring-1 ring-inset ring-amber-200">
+                        Inactive
+                      </span>
+                    ) : null}
+                  </div>
+                  <PunctualityBoxes stats={member.punctuality} compact />
                 </div>
 
-                <PunctualityPanel
-                  stats={member.punctuality}
-                  audience="member"
-                  memberName={fullName(member)}
-                  compact
-                  className="mb-5"
-                />
+                <PunctualityBar stats={member.punctuality} className="mb-5" />
 
                 <TaskSides
                   member={member}

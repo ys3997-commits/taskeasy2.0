@@ -250,14 +250,14 @@ export function TaskListPage({
 
   return (
     <AppShell>
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-        <div>
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="min-w-0">
           <h1 className="font-display text-3xl font-semibold text-ink-900">{title}</h1>
           <p className="mt-1 text-sm text-ink-500">{description}</p>
         </div>
         {view !== "approvals" ? (
-          <Link href="/tasks/new">
-            <Button>
+          <Link href="/tasks/new" className="block sm:shrink-0">
+            <Button className="w-full sm:w-auto">
               {view === "delegated" || view === "received"
                 ? "Create One-Time Task"
                 : "Create task"}
@@ -311,10 +311,11 @@ export function TaskListPage({
             actingId={actingId}
           />
           {total > pageSize ? (
-            <div className="mt-4 flex items-center justify-end gap-2">
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
               <Button
                 type="button"
                 variant="secondary"
+                className="w-full sm:w-auto"
                 disabled={page <= 1}
                 onClick={() => setPage((current) => Math.max(1, current - 1))}
               >
@@ -323,6 +324,7 @@ export function TaskListPage({
               <Button
                 type="button"
                 variant="secondary"
+                className="w-full sm:w-auto"
                 disabled={page >= totalPages}
                 onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
               >

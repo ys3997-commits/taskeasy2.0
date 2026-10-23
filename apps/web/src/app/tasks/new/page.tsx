@@ -84,7 +84,7 @@ export default function NewTaskPage() {
       <h1 className="font-display text-3xl font-semibold text-ink-900">Create One-Time Task</h1>
       <p className="mt-1 text-sm text-ink-500">Assign a one-time task.</p>
 
-      <form onSubmit={onSubmit} className="mt-6 max-w-2xl space-y-4 rounded-lg border border-ink-200 bg-white p-5">
+      <form onSubmit={onSubmit} className="mt-6 w-full max-w-2xl space-y-4 rounded-lg border border-ink-200 bg-white p-4 sm:p-5">
         {error ? <Alert>{error}</Alert> : null}
         <div>
           <Label htmlFor="description">Description</Label>
@@ -135,15 +135,15 @@ export default function NewTaskPage() {
               ))}
           </Select>
         </div>
-        <div className="flex gap-2">
-          <Button type="submit" disabled={phase !== "idle"}>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button type="submit" className="w-full sm:w-auto" disabled={phase !== "idle"}>
             {phase === "uploading"
               ? "Uploading attachments…"
               : phase === "creating"
                 ? "Creating…"
                 : "Create One-Time Task"}
           </Button>
-          <Button type="button" variant="secondary" disabled={phase !== "idle"} onClick={() => router.back()}>
+          <Button type="button" variant="secondary" className="w-full sm:w-auto" disabled={phase !== "idle"} onClick={() => router.back()}>
             Cancel
           </Button>
         </div>

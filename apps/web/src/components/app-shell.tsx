@@ -64,6 +64,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, router, pathname]);
 
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
   if (loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-ink-50 text-ink-500">
@@ -77,29 +90,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f7f8f8_0%,#eef2f0_100%)]">
-      <header className="sticky top-0 z-30 border-b border-ink-200/80 bg-white/90 backdrop-blur">
+      <header className="sticky top-0 z-50 border-b border-ink-200/80 bg-white/90 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div
           className={cn(
-            "flex items-center justify-between gap-4 px-4 py-3",
-            sideNav ? "mx-auto max-w-7xl" : "lg:px-6"
+            "shell-pad flex items-center justify-between gap-2 py-2 sm:gap-4 sm:py-3",
+            sideNav && "mx-auto max-w-7xl"
           )}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-1 sm:gap-2">
             <button
-              className="rounded-md p-2 text-ink-700 lg:hidden"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-ink-700 lg:hidden"
               onClick={() => setOpen((v) => !v)}
-              aria-label="Toggle menu"
+              aria-label={open ? "Close menu" : "Open menu"}
+              aria-expanded={open}
             >
               {open ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <div>
-              <p className="font-display text-xl font-semibold tracking-tight text-brand-700">
+            <div className="min-w-0">
+              <p className="truncate font-display text-lg font-semibold tracking-tight text-brand-700 sm:text-xl">
                 Rajshree Energy
               </p>
-              <p className="text-xs text-ink-500">Task Delegation Platform</p>
+              <p className="truncate text-[11px] text-ink-500 sm:text-xs">
+                Task Delegation Platform
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <div className="hidden text-right sm:block">
               <p className="text-sm font-medium text-ink-900">{fullName(user)}</p>
               <p className="text-xs text-ink-500">
@@ -108,19 +124,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <Button
               variant="secondary"
+              className="px-2.5 sm:px-3.5"
+              aria-label="Log out"
               onClick={() => {
                 logout();
                 router.replace("/login");
               }}
             >
-              <LogOut size={16} className="mr-1.5" />
-              Logout
+              <LogOut size={16} className="sm:mr-1.5" />
+              <span className="hidden sm:inline">Logout</span>
             </Button>
           </div>
         </div>
         {sideNav ? null : (
           <nav className="hidden border-t border-ink-100 lg:block">
-            <div className="flex items-center gap-1 overflow-x-auto px-4 py-2 lg:px-6">
+            <div className="shell-pad flex flex-wrap items-center gap-1 py-2">
               <ShellNav
                 items={items}
                 pathname={pathname}
@@ -133,10 +151,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       {sideNav ? (
-        <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
+        <div className="shell-pad mx-auto flex max-w-7xl gap-4 py-4 sm:gap-6 sm:py-6">
           <aside
             className={cn(
-              "fixed inset-y-0 left-0 z-40 w-64 border-r border-ink-200 bg-white p-4 pt-20 transition lg:static lg:z-0 lg:block lg:w-56 lg:shrink-0 lg:rounded-lg lg:border lg:p-3 lg:pt-3",
+              "fixed inset-y-0 left-0 z-40 w-[min(18rem,88vw)] overflow-y-auto overscroll-contain border-r border-ink-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[calc(4.5rem+env(safe-area-inset-top))] transition lg:static lg:z-0 lg:block lg:w-56 lg:shrink-0 lg:overflow-visible lg:rounded-lg lg:border lg:p-3 lg:pt-3",
               open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
             )}
           >
@@ -162,7 +180,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <>
           <aside
             className={cn(
-              "fixed inset-y-0 left-0 z-40 w-64 border-r border-ink-200 bg-white p-4 pt-20 transition lg:hidden",
+              "fixed inset-y-0 left-0 z-40 w-[min(18rem,88vw)] overflow-y-auto overscroll-contain border-r border-ink-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[calc(4.5rem+env(safe-area-inset-top))] transition lg:hidden",
               open ? "translate-x-0" : "-translate-x-full"
             )}
           >
@@ -182,7 +200,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               aria-label="Close menu overlay"
             />
           ) : null}
-          <main className="min-w-0 px-4 py-4 lg:px-6">{children}</main>
+          <main className="shell-main min-w-0 py-4">{children}</main>
         </>
       )}
     </div>
@@ -220,7 +238,7 @@ function ShellNav({
               "flex items-center gap-2 text-sm transition",
               layout === "bar"
                 ? "whitespace-nowrap rounded-md px-3 py-1.5"
-                : "rounded-md px-3 py-2",
+                : "min-h-11 rounded-md px-3 py-2.5",
               item.danger && layout === "drawer" && "mt-3 border-t border-ink-100 pt-4",
               item.danger && layout === "bar" && "ml-1 border-l border-ink-200 pl-3",
               item.danger

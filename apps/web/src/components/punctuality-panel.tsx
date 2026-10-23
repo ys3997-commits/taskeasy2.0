@@ -141,6 +141,102 @@ export function sumPunctuality(items: PunctualityStats[]): PunctualityStats {
   };
 }
 
+export function PunctualityBoxes({
+  stats,
+  compact = false,
+  showCounts = true,
+  className,
+}: {
+  stats: PunctualityStats;
+  compact?: boolean;
+  showCounts?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "grid w-full grid-cols-2 gap-2 sm:w-auto sm:gap-3",
+        compact ? "sm:min-w-[240px]" : "sm:min-w-[280px]",
+        className
+      )}
+    >
+      <div
+        className={cn(
+          "rounded-lg border border-brand-100 bg-white/80 text-center",
+          compact ? "px-3 py-2.5" : "px-4 py-3"
+        )}
+      >
+        <p className="text-[11px] font-medium uppercase leading-tight tracking-wide text-brand-700 sm:text-xs">
+          Done on time
+        </p>
+        <p
+          className={cn(
+            "mt-1 font-display font-semibold tabular-nums text-brand-800",
+            compact ? "text-2xl" : "text-3xl"
+          )}
+        >
+          {stats.completed === 0 ? "—" : `${stats.on_time_percent}%`}
+        </p>
+        {showCounts && stats.completed > 0 ? (
+          <p className="mt-0.5 text-xs text-ink-500">
+            {stats.on_time} of {stats.completed}
+          </p>
+        ) : null}
+      </div>
+      <div
+        className={cn(
+          "rounded-lg border border-red-100 bg-white/80 text-center",
+          compact ? "px-3 py-2.5" : "px-4 py-3"
+        )}
+      >
+        <p className="text-[11px] font-medium uppercase leading-tight tracking-wide text-red-700 sm:text-xs">
+          Done after deadline
+        </p>
+        <p
+          className={cn(
+            "mt-1 font-display font-semibold tabular-nums text-red-800",
+            compact ? "text-2xl" : "text-3xl"
+          )}
+        >
+          {stats.completed === 0 ? "—" : `${stats.late_percent}%`}
+        </p>
+        {showCounts && stats.completed > 0 ? (
+          <p className="mt-0.5 text-xs text-ink-500">
+            {stats.late} of {stats.completed}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+export function PunctualityBar({
+  stats,
+  compact = false,
+  className,
+}: {
+  stats: PunctualityStats;
+  compact?: boolean;
+  className?: string;
+}) {
+  if (stats.completed === 0) return null;
+  return (
+    <div
+      className={cn(
+        "overflow-hidden rounded-full bg-red-600",
+        compact ? "h-1.5" : "h-2",
+        className
+      )}
+      title={`${stats.on_time_percent}% on time, ${stats.late_percent}% after deadline`}
+    >
+      <div
+        className="h-full bg-green-600"
+        style={{ width: `${stats.on_time_percent}%` }}
+      />
+    </div>
+  );
+}
+
 export function PunctualityPanel({
   stats,
   audience = "self",
@@ -148,6 +244,8 @@ export function PunctualityPanel({
   compact = false,
   showCounts = true,
   showNarrative = true,
+  showBoxes = true,
+  splitBar = false,
   className,
 }: {
   stats: PunctualityStats | undefined;
@@ -156,6 +254,8 @@ export function PunctualityPanel({
   compact?: boolean;
   showCounts?: boolean;
   showNarrative?: boolean;
+  showBoxes?: boolean;
+  splitBar?: boolean;
   className?: string;
 }) {
   if (!stats) {
@@ -215,66 +315,27 @@ export function PunctualityPanel({
             ) : null}
           </div>
         ) : null}
+        {showBoxes ? (
+          <PunctualityBoxes stats={stats} compact={compact} showCounts={showCounts} />
+        ) : null}
+      </div>
+      {splitBar ? (
+        <PunctualityBar
+          stats={stats}
+          compact={compact}
+          className={compact ? "mt-3" : "mt-4"}
+        />
+      ) : stats.completed > 0 ? (
         <div
           className={cn(
-            "grid w-full gap-3 sm:w-auto sm:grid-cols-2",
-            compact ? "sm:min-w-[240px]" : "sm:min-w-[280px]"
+            "overflow-hidden rounded-full bg-ink-100",
+            compact ? "mt-3 h-1.5" : "mt-4 h-2"
           )}
+          title={`${stats.on_time_percent}% on time`}
         >
           <div
-            className={cn(
-              "rounded-lg border border-brand-100 bg-white/80 text-center",
-              compact ? "px-3 py-2.5" : "px-4 py-3"
-            )}
-          >
-            <p className="text-xs font-medium uppercase tracking-wide text-brand-700">
-              Done on time
-            </p>
-            <p
-              className={cn(
-                "mt-1 font-display font-semibold tabular-nums text-brand-800",
-                compact ? "text-2xl" : "text-3xl"
-              )}
-            >
-              {stats.completed === 0 ? "—" : `${stats.on_time_percent}%`}
-            </p>
-            {showCounts && stats.completed > 0 ? (
-              <p className="mt-0.5 text-xs text-ink-500">
-                {stats.on_time} of {stats.completed}
-              </p>
-            ) : null}
-          </div>
-          <div
-            className={cn(
-              "rounded-lg border border-red-100 bg-white/80 text-center",
-              compact ? "px-3 py-2.5" : "px-4 py-3"
-            )}
-          >
-            <p className="text-xs font-medium uppercase tracking-wide text-red-700">
-              Done after deadline
-            </p>
-            <p
-              className={cn(
-                "mt-1 font-display font-semibold tabular-nums text-red-800",
-                compact ? "text-2xl" : "text-3xl"
-              )}
-            >
-              {stats.completed === 0 ? "—" : `${stats.late_percent}%`}
-            </p>
-            {showCounts && stats.completed > 0 ? (
-              <p className="mt-0.5 text-xs text-ink-500">
-                {stats.late} of {stats.completed}
-              </p>
-            ) : null}
-          </div>
-        </div>
-      </div>
-      {stats.completed > 0 ? (
-        <div className={cn("overflow-hidden rounded-full bg-ink-100", compact ? "mt-3 h-1.5" : "mt-4 h-2")}>
-          <div
-            className="h-full rounded-full bg-brand-600 transition-all"
+            className="h-full bg-brand-600 transition-all"
             style={{ width: `${stats.on_time_percent}%` }}
-            title={`${stats.on_time_percent}% on time`}
           />
         </div>
       ) : null}

@@ -16,7 +16,7 @@ import {
 import { api } from "@/lib/api";
 import { formatFileSize } from "@/lib/attachments";
 import { formatDate, formatDateTime, fullName } from "@/lib/utils";
-import { Button, EmptyState, StatusBadge } from "./ui";
+import { Button, EmptyState, Select, StatusBadge } from "./ui";
 
 export function TaskTable({
   tasks,
@@ -120,73 +120,132 @@ export function TaskTable({
     );
   }
 
+  const titleLabel = assigned || delegated || approvals ? "Tasks" : "Title";
+  const deadlineLabel = showRange ? "End Date" : "Deadline";
+  const sortFields: { key: SortKey; label: string }[] = [
+    { key: "title", label: titleLabel },
+    ...(showReceiver ? [{ key: "receiver" as const, label: "Receiver" }] : []),
+    ...(showDelegator ? [{ key: "delegator" as const, label: "Delegator" }] : []),
+    ...(showRange ? [{ key: "start" as const, label: "Start Date" }] : []),
+    { key: "deadline", label: deadlineLabel },
+    { key: "frequency", label: "Frequency" },
+  ];
+
   return (
-    <div className="overflow-x-auto rounded-lg border border-ink-200 bg-white">
-      <table className="min-w-full text-left text-sm">
-        <thead className="bg-ink-50 text-ink-500">
-          <tr>
-            <SortHeader
-              label={assigned || delegated || approvals ? "Tasks" : "Title"}
-              column="title"
-              sortable={sortable}
-              sort={sort}
-              onSort={toggleSort}
-            />
-            {showReceiver ? (
+    <>
+      {sortable ? (
+        <div className="mb-3 md:hidden">
+          <label htmlFor="task-mobile-sort" className="mb-1 block text-xs font-medium text-ink-500">
+            Sort
+          </label>
+          <Select
+            id="task-mobile-sort"
+            value={sort ? `${sort.key}:${sort.dir}` : ""}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (!value) {
+                setSort(null);
+                return;
+              }
+              const [key, dir] = value.split(":") as [SortKey, SortDir];
+              setSort({ key, dir });
+            }}
+          >
+            <option value="">Default order</option>
+            {sortFields.map((field) => (
+              <option key={`${field.key}:asc`} value={`${field.key}:asc`}>
+                {sortChoiceLabel(field.key, field.label, "asc")}
+              </option>
+            ))}
+            {sortFields.map((field) => (
+              <option key={`${field.key}:desc`} value={`${field.key}:desc`}>
+                {sortChoiceLabel(field.key, field.label, "desc")}
+              </option>
+            ))}
+          </Select>
+        </div>
+      ) : null}
+
+      <div className="space-y-3 md:hidden">
+        {rows.map(({ key, deadlineRaw: _deadlineRaw, startRaw: _startRaw, ...row }) => (
+          <TaskCard key={key} {...row} attachments={attachments[key] ?? []} />
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-lg border border-ink-200 bg-white md:block">
+        <table className="min-w-full text-left text-sm">
+          <thead className="bg-ink-50 text-ink-500">
+            <tr>
               <SortHeader
-                label="Receiver"
-                column="receiver"
+                label={titleLabel}
+                column="title"
                 sortable={sortable}
                 sort={sort}
                 onSort={toggleSort}
               />
-            ) : null}
-            {showDelegator ? (
+              {showReceiver ? (
+                <SortHeader
+                  label="Receiver"
+                  column="receiver"
+                  sortable={sortable}
+                  sort={sort}
+                  onSort={toggleSort}
+                />
+              ) : null}
+              {showDelegator ? (
+                <SortHeader
+                  label="Delegator"
+                  column="delegator"
+                  sortable={sortable}
+                  sort={sort}
+                  onSort={toggleSort}
+                />
+              ) : null}
+              {showRange ? (
+                <SortHeader
+                  label="Start Date"
+                  column="start"
+                  sortable={sortable}
+                  sort={sort}
+                  onSort={toggleSort}
+                />
+              ) : null}
               <SortHeader
-                label="Delegator"
-                column="delegator"
+                label={deadlineLabel}
+                column="deadline"
                 sortable={sortable}
                 sort={sort}
                 onSort={toggleSort}
               />
-            ) : null}
-            {showRange ? (
               <SortHeader
-                label="Start Date"
-                column="start"
+                label="Frequency"
+                column="frequency"
                 sortable={sortable}
                 sort={sort}
                 onSort={toggleSort}
               />
-            ) : null}
-            <SortHeader
-              label={showRange ? "End Date" : "Deadline"}
-              column="deadline"
-              sortable={sortable}
-              sort={sort}
-              onSort={toggleSort}
-            />
-            <SortHeader
-              label="Frequency"
-              column="frequency"
-              sortable={sortable}
-              sort={sort}
-              onSort={toggleSort}
-            />
-            <th className="px-4 py-3 font-medium">Status</th>
-            {assigned || delegatorActions ? (
-              <th className="px-4 py-3 font-medium">Action</th>
-            ) : null}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ key, deadlineRaw: _deadlineRaw, startRaw: _startRaw, ...row }) => (
-            <TaskRow key={key} {...row} attachments={attachments[key] ?? []} />
-          ))}
-        </tbody>
-      </table>
-    </div>
+              <th className="px-4 py-3 font-medium">Status</th>
+              {assigned || delegatorActions ? (
+                <th className="px-4 py-3 font-medium">Action</th>
+              ) : null}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ key, deadlineRaw: _deadlineRaw, startRaw: _startRaw, ...row }) => (
+              <TaskRow key={key} {...row} attachments={attachments[key] ?? []} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
+}
+
+function sortChoiceLabel(key: SortKey, label: string, dir: SortDir) {
+  if (key === "deadline" || key === "start") {
+    return dir === "asc" ? `${label}, earliest first` : `${label}, latest first`;
+  }
+  return dir === "asc" ? `${label}, A to Z` : `${label}, Z to A`;
 }
 
 type SortKey = "title" | "receiver" | "delegator" | "start" | "deadline" | "frequency";
@@ -470,22 +529,32 @@ function taskFrequencyLabel(task: Task) {
   return frequency ? FREQUENCY_LABELS[frequency] : "—";
 }
 
-function TaskRow({
-  title,
-  receiver,
-  showReceiver,
-  delegator,
-  showDelegator,
-  showStartDate,
-  startDate,
-  deadline,
-  type,
-  status,
-  statusLabel,
-  complete,
-  delegatorAction,
-  attachments,
-}: {
+function AttachmentLinks({ attachments }: { attachments: TaskAttachment[] }) {
+  if (!attachments.length) return null;
+  return (
+    <div className="mt-2 flex flex-wrap gap-1">
+      {attachments.map((file) => (
+        <a
+          key={file.id}
+          href={file.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`${file.file_name} (${formatFileSize(file.size_bytes)})`}
+          className="inline-flex max-w-full items-center gap-1 rounded-full border border-ink-200 bg-ink-50 px-2 py-0.5 text-xs font-medium text-ink-700 hover:border-brand-500 hover:text-brand-700"
+        >
+          {file.content_type.startsWith("image/") ? (
+            <ImageIcon className="h-3 w-3 shrink-0" aria-hidden />
+          ) : (
+            <Paperclip className="h-3 w-3 shrink-0" aria-hidden />
+          )}
+          <span className="max-w-[11rem] truncate">{file.file_name}</span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
+type TaskItemProps = {
   title: string;
   receiver: string;
   showReceiver: boolean;
@@ -506,7 +575,93 @@ function TaskRow({
     onClick?: () => void;
   };
   delegatorAction?: DelegatorAction;
-}) {
+};
+
+function TaskCard({
+  title,
+  receiver,
+  showReceiver,
+  delegator,
+  showDelegator,
+  showStartDate,
+  startDate,
+  deadline,
+  type,
+  status,
+  statusLabel,
+  complete,
+  delegatorAction,
+  attachments,
+}: TaskItemProps) {
+  const overdue = status === "overdue";
+  return (
+    <article
+      className={
+        overdue
+          ? "rounded-lg border border-red-200 bg-red-50 p-4"
+          : "rounded-lg border border-ink-200 bg-white p-4 shadow-sm"
+      }
+    >
+      <div className="flex items-start justify-between gap-3">
+        <h3 className={`min-w-0 break-words text-base font-medium ${overdue ? "text-red-800" : "text-ink-900"}`}>
+          {title}
+        </h3>
+        {status ? <StatusBadge status={status} label={statusLabel} /> : null}
+      </div>
+      <AttachmentLinks attachments={attachments} />
+      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
+        {showReceiver ? <Meta label="Receiver" value={receiver} /> : null}
+        {showDelegator ? <Meta label="Delegator" value={delegator} /> : null}
+        {showStartDate ? <Meta label="Start Date" value={startDate || "—"} /> : null}
+        <Meta label="Deadline" value={deadline} />
+        <Meta label="Frequency" value={type} />
+      </dl>
+      {complete?.enabled ? (
+        <Button
+          type="button"
+          className="mt-4 w-full bg-emerald-600 text-white hover:bg-emerald-700"
+          disabled={complete.pending}
+          onClick={complete.onClick}
+        >
+          {complete.pending
+            ? complete.pendingLabel || "Marking…"
+            : complete.label || "Mark as Complete"}
+        </Button>
+      ) : null}
+      {delegatorAction && delegatorAction.kind !== "none" ? (
+        <div className="mt-4">
+          <DelegatorButtons action={delegatorAction} wide />
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function Meta({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-500">{label}</dt>
+      <dd className="mt-0.5 break-words text-sm text-ink-800">{value}</dd>
+    </div>
+  );
+}
+
+function TaskRow({
+  title,
+  receiver,
+  showReceiver,
+  delegator,
+  showDelegator,
+  showStartDate,
+  startDate,
+  deadline,
+  type,
+  status,
+  statusLabel,
+  complete,
+  delegatorAction,
+  attachments,
+}: TaskItemProps) {
   const overdue = status === "overdue";
   const cellText = overdue ? "text-red-800" : "text-ink-700";
   return (
@@ -517,27 +672,7 @@ function TaskRow({
         <span className={overdue ? "font-medium text-red-800" : "font-medium text-ink-900"}>
           {title}
         </span>
-        {attachments.length ? (
-          <div className="mt-1.5 flex max-w-xs flex-wrap gap-1">
-            {attachments.map((file) => (
-              <a
-                key={file.id}
-                href={file.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={`${file.file_name} (${formatFileSize(file.size_bytes)})`}
-                className="inline-flex max-w-full items-center gap-1 rounded-full border border-ink-200 bg-ink-50 px-2 py-0.5 text-xs font-medium text-ink-700 hover:border-brand-500 hover:text-brand-700"
-              >
-                {file.content_type.startsWith("image/") ? (
-                  <ImageIcon className="h-3 w-3 shrink-0" aria-hidden />
-                ) : (
-                  <Paperclip className="h-3 w-3 shrink-0" aria-hidden />
-                )}
-                <span className="max-w-[11rem] truncate">{file.file_name}</span>
-              </a>
-            ))}
-          </div>
-        ) : null}
+        <AttachmentLinks attachments={attachments} />
       </td>
       {showReceiver ? <td className={`px-4 py-3 ${cellText}`}>{receiver}</td> : null}
       {showDelegator ? <td className={`px-4 py-3 ${cellText}`}>{delegator}</td> : null}
@@ -574,18 +709,20 @@ function TaskRow({
   );
 }
 
-const actionButtonClass = "h-7 w-40 justify-center whitespace-nowrap px-2 py-0 text-xs";
+const actionButtonClass = "h-7 min-h-0 w-40 justify-center whitespace-nowrap px-2 py-0 text-xs";
+const wideActionButtonClass = "w-full justify-center whitespace-normal";
 
-function DelegatorButtons({ action }: { action: DelegatorAction }) {
+function DelegatorButtons({ action, wide = false }: { action: DelegatorAction; wide?: boolean }) {
   if (action.kind === "none") return <span>—</span>;
+  const buttonClass = wide ? wideActionButtonClass : actionButtonClass;
 
   return (
-    <div className="flex w-40 flex-col gap-1">
+    <div className={wide ? "flex flex-col gap-2" : "flex w-40 flex-col gap-1"}>
       {action.kind === "cancel" ? (
         <Button
           type="button"
           variant="danger"
-          className={actionButtonClass}
+          className={buttonClass}
           disabled={action.pending}
           onClick={action.onCancel}
         >
@@ -595,7 +732,7 @@ function DelegatorButtons({ action }: { action: DelegatorAction }) {
         <>
           <Button
             type="button"
-            className={`${actionButtonClass} bg-emerald-600 text-white hover:bg-emerald-700`}
+            className={`${buttonClass} bg-emerald-600 text-white hover:bg-emerald-700`}
             disabled={action.pending}
             onClick={action.onApprove}
           >
@@ -603,7 +740,7 @@ function DelegatorButtons({ action }: { action: DelegatorAction }) {
           </Button>
           <Button
             type="button"
-            className={`${actionButtonClass} bg-orange-500 text-white hover:bg-orange-600`}
+            className={`${buttonClass} bg-orange-500 text-white hover:bg-orange-600`}
             disabled={action.pending}
             onClick={action.onRetask}
           >

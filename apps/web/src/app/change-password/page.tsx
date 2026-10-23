@@ -52,7 +52,7 @@ export default function ChangePasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-ink-50 px-4">
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-md space-y-4 rounded-xl border border-ink-200 bg-white p-8 shadow-sm"
+        className="w-full max-w-md space-y-4 rounded-xl border border-ink-200 bg-white p-5 shadow-sm sm:p-8"
       >
         <div>
           <h1 className="font-display text-2xl font-semibold text-ink-900">
